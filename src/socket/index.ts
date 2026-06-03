@@ -6,7 +6,9 @@ export const socket = io(socketUrl, {
   autoConnect: false,
 })
 
-export function connectSocket() {
+export function connectSocket(firebaseToken: string) {
+  socket.auth = { token: firebaseToken }
+
   if (!socket.connected) {
     socket.connect()
   }

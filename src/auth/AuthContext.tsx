@@ -12,6 +12,7 @@ import {
 import type { User } from 'firebase/auth'
 import { auth } from './firebase'
 import { AuthContext, type AuthContextValue } from './authState'
+import { socket } from '../socket'
 
 const googleProvider = new GoogleAuthProvider()
 
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         await syncBackendUser(credentials.user, displayName)
       },
       logout() {
+        socket.disconnect()
         return signOut(auth)
       },
     }),

@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import Card from '../components/Card'
 import { createInitialGame, dealCards } from '../game/engine'
 import type { GameState, Player } from '../game/types'
-import { connectSocket } from '../socket'
+import { connectSocket, socket } from '../socket'
+import { useAuth } from '../auth/useAuth'
 
 type ServerGameState = {
   id: string
@@ -21,6 +22,7 @@ function createLocalPlayers(playerIds: string[]): Player[] {
 
 export default function Game() {
   const { gameId = '' } = useParams()
+  const { user } = useAuth()
   const [serverState, setServerState] = useState<ServerGameState | null>(null)
   const [connectionStatus, setConnectionStatus] = useState('Connecting...')
 
@@ -39,7 +41,12 @@ export default function Game() {
   }, [gameId, serverState])
 
   useEffect(() => {
-    const activeSocket = connectSocket()
+    if (!user) {
+      return
+    }
+
+    let cancelled = false
+    const activeSocket = socket
 
     function handleConnect() {
       setConnectionStatus('Connected')
@@ -50,24 +57,47 @@ export default function Game() {
       setConnectionStatus('Disconnected')
     }
 
+    function handleConnectError() {
+      setConnectionStatus('Authentication failed')
+    }
+
     function handleGameState(nextState: ServerGameState) {
       setServerState(nextState)
     }
 
+    setConnectionStatus('Connecting...')
     activeSocket.on('connect', handleConnect)
     activeSocket.on('disconnect', handleDisconnect)
+    activeSocket.on('connect_error', handleConnectError)
     activeSocket.on('game_state', handleGameState)
 
-    if (activeSocket.connected) {
-      handleConnect()
-    }
+    user
+      .getIdToken()
+      .then((token) => {
+        if (cancelled) {
+          return
+        }
+
+        connectSocket(token)
+
+        if (activeSocket.connected) {
+          handleConnect()
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConnectionStatus('Authentication failed')
+        }
+      })
 
     return () => {
+      cancelled = true
       activeSocket.off('connect', handleConnect)
       activeSocket.off('disconnect', handleDisconnect)
+      activeSocket.off('connect_error', handleConnectError)
       activeSocket.off('game_state', handleGameState)
     }
-  }, [gameId])
+  }, [gameId, user])
 
   return (
     <main className="page-shell game-page">

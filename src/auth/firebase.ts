@@ -1,11 +1,21 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
+function requireFirebaseEnv(name: string) {
+  const value = import.meta.env[name]
+
+  if (!value || value.startsWith('your-')) {
+    throw new Error(`Missing Firebase config: set ${name} in pinnacora-client/.env`)
+  }
+
+  return value
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: requireFirebaseEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: requireFirebaseEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: requireFirebaseEnv('VITE_FIREBASE_PROJECT_ID'),
+  appId: requireFirebaseEnv('VITE_FIREBASE_APP_ID'),
 }
 
 export const firebaseApp = initializeApp(firebaseConfig)
