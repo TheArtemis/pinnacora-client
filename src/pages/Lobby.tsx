@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 
 function createGameCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase()
@@ -8,6 +9,7 @@ function createGameCode() {
 
 export default function Lobby() {
   const navigate = useNavigate()
+  const { logout, user } = useAuth()
   const [gameCode, setGameCode] = useState('')
 
   function handleCreateGame() {
@@ -26,6 +28,13 @@ export default function Lobby() {
   return (
     <main className="page-shell lobby">
       <section className="hero-panel">
+        <div className="top-bar">
+          <span>{user?.displayName ?? user?.email}</span>
+          <button type="button" className="secondary-button" onClick={logout}>
+            Log out
+          </button>
+        </div>
+
         <p className="eyebrow">Pinnacora</p>
         <h1>A private card table for two.</h1>
         <p className="lede">
