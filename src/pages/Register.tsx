@@ -16,13 +16,27 @@ function getRedirectPath(state: unknown) {
 export default function Register() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { loading, register, user } = useAuth()
+  const { loading, loginWithGoogle, register, user } = useAuth()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const redirectPath = getRedirectPath(location.state)
+
+  async function handleGoogleSignIn() {
+    setSubmitting(true)
+    setError('')
+
+    try {
+      await loginWithGoogle()
+      navigate(redirectPath, { replace: true })
+    } catch {
+      setError('Could not sign in with Google. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -49,6 +63,14 @@ export default function Register() {
         <p className="eyebrow">Create account</p>
         <h1>Register for Pinnacora.</h1>
         <p className="lede">Make a private account before creating or joining a game.</p>
+
+        <div className="auth-form">
+          <button type="button" disabled={submitting} onClick={handleGoogleSignIn}>
+            {submitting ? 'Signing in...' : 'Continue with Google'}
+          </button>
+        </div>
+
+        <p className="auth-divider">or</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label htmlFor="display-name">Display name</label>

@@ -16,12 +16,26 @@ function getRedirectPath(state: unknown) {
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { loading, login, user } = useAuth()
+  const { loading, login, loginWithGoogle, user } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const redirectPath = getRedirectPath(location.state)
+
+  async function handleGoogleSignIn() {
+    setSubmitting(true)
+    setError('')
+
+    try {
+      await loginWithGoogle()
+      navigate(redirectPath, { replace: true })
+    } catch {
+      setError('Could not sign in with Google. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -48,6 +62,14 @@ export default function Login() {
         <p className="eyebrow">Welcome back</p>
         <h1>Log in to Pinnacora.</h1>
         <p className="lede">Use your account to get back to your private card table.</p>
+
+        <div className="auth-form">
+          <button type="button" disabled={submitting} onClick={handleGoogleSignIn}>
+            {submitting ? 'Signing in...' : 'Continue with Google'}
+          </button>
+        </div>
+
+        <p className="auth-divider">or</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label htmlFor="email">Email</label>

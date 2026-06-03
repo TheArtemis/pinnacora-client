@@ -2,14 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
 } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from './firebase'
 import { AuthContext, type AuthContextValue } from './authState'
+
+const googleProvider = new GoogleAuthProvider()
 
 const apiUrl = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL
 
@@ -50,6 +54,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       loading,
       async login(email, password) {
         const credentials = await signInWithEmailAndPassword(auth, email, password)
+        await syncBackendUser(credentials.user)
+      },
+      async loginWithGoogle() {
+        const credentials = await signInWithPopup(auth, googleProvider)
         await syncBackendUser(credentials.user)
       },
       async register(displayName, email, password) {
