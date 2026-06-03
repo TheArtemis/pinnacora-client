@@ -1,4 +1,4 @@
-export type CardSuit = 'clubs' | 'diamonds' | 'hearts' | 'spades'
+export type CardSuit = 'clubs' | 'diamonds' | 'hearts' | 'spades' | 'joker'
 
 export type CardRank =
   | 'A'
@@ -14,6 +14,7 @@ export type CardRank =
   | 'J'
   | 'Q'
   | 'K'
+  | 'JOKER'
 
 export type Card = {
   id: string
@@ -28,6 +29,8 @@ export type Player = {
 }
 
 export type GameStatus = 'waiting' | 'playing' | 'finished'
+export type ServerGameStatus = 'waiting' | 'playing' | 'paused' | 'finished'
+export type GamePhase = 'waiting' | 'draw' | 'discard' | 'finished'
 
 export type GameState = {
   id: string
@@ -36,4 +39,23 @@ export type GameState = {
   discardPile: Card[]
   currentPlayerId?: string
   status: GameStatus
+}
+
+export type ServerGamePlayer = {
+  id: string
+  name: string
+  connected: boolean
+  handCount: number
+  hand?: Card[]
+}
+
+export type ServerGameState = {
+  id: string
+  status: ServerGameStatus
+  phase: GamePhase
+  players: ServerGamePlayer[]
+  deckCount: number
+  discardPile: Card[]
+  currentPlayerId?: string
+  youPlayerId?: string
 }

@@ -226,10 +226,38 @@ button:disabled {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.player div {
+  display: grid;
+  gap: 4px;
+}
+
+.player small,
+.turn-pill {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.table-heading {
+  color: #fff;
+}
+
+.table-controls {
+  grid-template-columns: minmax(0, 1fr) auto minmax(220px, 1fr);
+  align-items: center;
+}
+
 .hand {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.discard-pile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 132px;
 }
 
 .playing-card {
@@ -243,6 +271,21 @@ button:disabled {
   background: #fff;
   box-shadow: 0 12px 20px rgba(8, 6, 13, 0.18);
   font-weight: 800;
+}
+
+.playing-card-button {
+  padding: 0;
+}
+
+.playing-card-button:hover:not(:disabled),
+.playing-card--selected {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 26px rgba(8, 6, 13, 0.24);
+}
+
+.playing-card-button:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
 .playing-card--red {
@@ -489,6 +532,10 @@ button:disabled {
   .join-form__row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .table-controls {
+    grid-template-columns: 1fr;
   }
 
   .join-form input {

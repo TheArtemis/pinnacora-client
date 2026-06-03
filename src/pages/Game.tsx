@@ -2,23 +2,32 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import Card from '../components/Card'
-import { createInitialGame, dealCards } from '../game/engine'
-import type { GameState, Player } from '../game/types'
+import type { Card as CardType, ServerGameState } from '../game/types'
 import { connectSocket, socket } from '../socket'
 import { useAuth } from '../auth/useAuth'
 
-type ServerGameState = {
-  id: string
-  players?: string[]
-  state?: string
-}
+function statusText(state: ServerGameState | null) {
+  if (!state) {
+    return 'Waiting for game state...'
+  }
 
-function createLocalPlayers(playerIds: string[]): Player[] {
-  return playerIds.map((id, index) => ({
-    id,
-    name: `Player ${index + 1}`,
-    hand: [],
-  }))
+  if (state.status === 'waiting') {
+    return 'Waiting for both players to connect.'
+  }
+
+  if (state.status === 'paused') {
+    return 'Game paused until both players reconnect.'
+  }
+
+  if (state.status === 'finished') {
+    return 'Game finished.'
+  }
+
+  const currentPlayer = state.players.find((player) => player.id === state.currentPlayerId)
+  const currentName = currentPlayer?.id === state.youPlayerId ? 'Your' : `${currentPlayer?.name ?? 'Player'}'s`
+  const action = state.phase === 'draw' ? 'draw a card' : 'discard a card'
+
+  return `${currentName} turn to ${action}.`
 }
 
 export default function Game() {
@@ -32,21 +41,18 @@ export default function Game() {
   const [serverState, setServerState] = useState<ServerGameState | null>(null)
   const [connectionStatus, setConnectionStatus] = useState('Connecting...')
   const [finishError, setFinishError] = useState('')
+  const [gameError, setGameError] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
-  const previewGame = useMemo<GameState>(() => {
-    const initialGame = createInitialGame(gameId)
-    const players = createLocalPlayers(serverState?.players ?? ['You', 'Partner'])
-    const dealt = dealCards(players, initialGame.deck)
-
-    return {
-      ...initialGame,
-      players: dealt.players,
-      deck: dealt.deck,
-      currentPlayerId: dealt.players[0]?.id,
-      status: serverState?.state === 'waiting' ? 'waiting' : 'playing',
-    }
-  }, [gameId, serverState])
+  const currentPlayer = useMemo(
+    () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
+    [serverState],
+  )
+  const isMyTurn = Boolean(serverState?.youPlayerId && serverState.currentPlayerId === serverState.youPlayerId)
+  const canDraw = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'draw'
+  const canDiscard = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'discard'
+  const hand = currentPlayer?.hand ?? []
 
   useEffect(() => {
     if (!user) {
@@ -58,6 +64,7 @@ export default function Game() {
 
     function handleConnect() {
       setConnectionStatus('Connected')
+      setGameError('')
       activeSocket.emit('join_game', tournamentId ? { gameId, tournamentId } : gameId)
     }
 
@@ -71,10 +78,12 @@ export default function Game() {
 
     function handleGameState(nextState: ServerGameState) {
       setServerState(nextState)
+      setSelectedCardId(null)
+      setGameError('')
     }
 
     function handleGameError(nextError: { error?: string }) {
-      setConnectionStatus(nextError.error ?? 'Could not join game')
+      setGameError(nextError.error ?? 'Could not join game')
     }
 
     activeSocket.on('connect', handleConnect)
@@ -109,8 +118,28 @@ export default function Game() {
       activeSocket.off('connect_error', handleConnectError)
       activeSocket.off('game_state', handleGameState)
       activeSocket.off('game_error', handleGameError)
+      activeSocket.disconnect()
     }
   }, [gameId, tournamentId, user])
+
+  function handleDrawCard() {
+    if (!canDraw) {
+      return
+    }
+
+    setGameError('')
+    socket.emit('draw_card')
+  }
+
+  function handleDiscardCard(card: CardType) {
+    if (!canDiscard) {
+      return
+    }
+
+    setSelectedCardId(card.id)
+    setGameError('')
+    socket.emit('discard_card', { cardId: card.id })
+  }
 
   async function handleFinishGame() {
     if (!user || !tournamentId || !gameDbId) {
@@ -147,27 +176,63 @@ export default function Game() {
 
       <section className="table">
         <div className="table-zone">
-          <h2>Players</h2>
+          <div className="section-heading table-heading">
+            <h2>Players</h2>
+            <span>{statusText(serverState)}</span>
+          </div>
           <div className="players">
-            {previewGame.players.map((player) => (
+            {serverState?.players.map((player) => (
               <article className="player" key={player.id}>
-                <strong>{player.name}</strong>
-                <span>{player.hand.length} cards</span>
+                <div>
+                  <strong>{player.id === serverState.youPlayerId ? 'You' : player.name}</strong>
+                  <small>{player.connected ? 'Connected' : 'Disconnected'}</small>
+                </div>
+                <span>{player.handCount} cards</span>
+                {player.id === serverState.currentPlayerId ? <span className="turn-pill">Turn</span> : null}
               </article>
             ))}
+            {!serverState ? <p className="muted">Connecting to the table...</p> : null}
+          </div>
+        </div>
+
+        <div className="table-zone table-controls">
+          <div>
+            <h2>Deck</h2>
+            <p className="muted">{serverState?.deckCount ?? 0} cards left</p>
+          </div>
+          <button type="button" onClick={handleDrawCard} disabled={!canDraw}>
+            Draw card
+          </button>
+          {canDiscard ? <p className="muted">Choose a card from your hand to discard.</p> : null}
+        </div>
+
+        <div className="table-zone">
+          <h2>Discard pile</h2>
+          <div className="discard-pile">
+            {serverState?.discardPile.map((card) => <Card card={card} key={card.id} />)}
+            {serverState?.discardPile.length === 0 ? <p className="muted">No discarded cards yet.</p> : null}
           </div>
         </div>
 
         <div className="table-zone">
           <h2>Your hand</h2>
           <div className="hand">
-            {previewGame.players[0]?.hand.map((card) => <Card card={card} key={card.id} />)}
+            {hand.map((card) => (
+              <Card
+                card={card}
+                disabled={!canDiscard}
+                key={card.id}
+                onClick={canDiscard ? () => handleDiscardCard(card) : undefined}
+                selected={selectedCardId === card.id}
+              />
+            ))}
+            {serverState && hand.length === 0 ? <p className="muted">Your cards will appear when both players connect.</p> : null}
           </div>
         </div>
       </section>
 
       <footer className="game-footer">
-        <span>{previewGame.deck.length} cards left in deck</span>
+        <span>{statusText(serverState)}</span>
         <div className="game-actions">
           {isTournamentGame ? (
             <button type="button" onClick={handleFinishGame} disabled={finishing}>
@@ -179,6 +244,7 @@ export default function Game() {
           </Link>
         </div>
       </footer>
+      {gameError ? <p className="form-error">{gameError}</p> : null}
       {finishError ? <p className="form-error">{finishError}</p> : null}
     </main>
   )

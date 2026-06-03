@@ -3,6 +3,9 @@ import type { Card as CardType } from '../game/types'
 type CardProps = {
   card: CardType
   hidden?: boolean
+  selected?: boolean
+  disabled?: boolean
+  onClick?: () => void
 }
 
 const suitSymbols: Record<CardType['suit'], string> = {
@@ -10,21 +13,44 @@ const suitSymbols: Record<CardType['suit'], string> = {
   diamonds: '♦',
   hearts: '♥',
   spades: '♠',
+  joker: 'Joker',
 }
 
-export default function Card({ card, hidden = false }: CardProps) {
+export default function Card({ card, hidden = false, selected = false, disabled = false, onClick }: CardProps) {
   if (hidden) {
     return <div className="playing-card playing-card--hidden">P</div>
   }
 
   const isRed = card.suit === 'diamonds' || card.suit === 'hearts'
+  const className = [
+    'playing-card',
+    onClick ? 'playing-card-button' : '',
+    isRed ? 'playing-card--red' : '',
+    selected ? 'playing-card--selected' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
-  return (
-    <div className={`playing-card ${isRed ? 'playing-card--red' : ''}`}>
+  const contents = (
+    <>
       <span className="playing-card__rank">{card.rank}</span>
       <span className="playing-card__suit" aria-label={card.suit}>
         {suitSymbols[card.suit]}
       </span>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick} disabled={disabled} aria-pressed={selected}>
+        {contents}
+      </button>
+    )
+  }
+
+  return (
+    <div className={className}>
+      {contents}
     </div>
   )
 }
