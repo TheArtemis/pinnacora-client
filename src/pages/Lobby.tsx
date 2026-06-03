@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 
 function createGameCode() {
@@ -38,12 +38,16 @@ export default function Lobby() {
         <p className="eyebrow">Pinnacora</p>
         <h1>A private card table for two.</h1>
         <p className="lede">
-          Create a room, share the game code, and play together from wherever you are.
+          Create a tournament for your matches, or jump into a quick room while the real rules are
+          still taking shape.
         </p>
 
         <div className="lobby-actions">
+          <Link className="primary-link" to="/tournaments">
+            Open tournaments
+          </Link>
           <button type="button" className="primary-button" onClick={handleCreateGame}>
-            Create game
+            Quick game
           </button>
 
           <form className="join-form" onSubmit={handleJoinGame}>
@@ -61,13 +65,13 @@ export default function Lobby() {
         </div>
       </section>
 
-      <section className="setup-panel" aria-label="Deployment plan">
-        <h2>Stack plan</h2>
+      <section className="setup-panel" aria-label="Tournament plan">
+        <h2>Tournament mode</h2>
         <ul>
-          <li>Frontend: Vercel</li>
-          <li>Backend: Render</li>
-          <li>Database: Neon</li>
-          <li>Authentication: Firebase Authentication</li>
+          <li>Private tournament join codes</li>
+          <li>Multiple active tournaments</li>
+          <li>Finished games with placeholder winners</li>
+          <li>Past tournament results dashboard</li>
         </ul>
       </section>
     </main>

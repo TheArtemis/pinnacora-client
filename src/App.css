@@ -91,6 +91,38 @@ button:hover {
   background: var(--accent-strong);
 }
 
+.primary-link,
+.secondary-link,
+.text-link {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primary-link,
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.primary-link {
+  min-height: 54px;
+  padding: 13px 22px;
+  color: #fff;
+  background: var(--accent);
+}
+
+.primary-link:hover {
+  background: var(--accent-strong);
+}
+
+.secondary-link {
+  padding: 9px 14px;
+  background: var(--accent-bg);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.72;
@@ -235,6 +267,142 @@ button:disabled {
   font-weight: 700;
 }
 
+.game-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tournaments-page {
+  display: grid;
+  gap: 24px;
+}
+
+.dashboard-header,
+.dashboard-panel,
+.tournament-card {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 28px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.dashboard-panel,
+.tournament-card {
+  padding: 24px;
+}
+
+.form-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.form-panel label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.form-panel input {
+  width: 100%;
+  padding: 14px 16px;
+  color: var(--text-h);
+  background: var(--input);
+  border: 1px solid var(--border);
+}
+
+.tournament-section {
+  display: grid;
+  gap: 12px;
+}
+
+.section-heading,
+.card-header,
+.game-row,
+.standing-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.section-heading span,
+.status-pill {
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-weight: 800;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.tournament-card {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+.stats-grid div,
+.standing-row,
+.game-row,
+.player-list span {
+  border-radius: 18px;
+  padding: 14px;
+  background: var(--accent-bg);
+}
+
+.stats-grid dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.stats-grid dd {
+  margin: 4px 0 0;
+  font-weight: 900;
+}
+
+.player-list,
+.standings,
+.game-list {
+  display: grid;
+  gap: 12px;
+}
+
+.game-row {
+  background: var(--input);
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .auth-page {
   display: grid;
   place-items: center;
@@ -312,6 +480,11 @@ button:disabled {
 
   .game-header,
   .game-footer,
+  .game-actions,
+  .dashboard-header,
+  .section-heading,
+  .game-row,
+  .standing-row,
   .top-bar,
   .join-form__row {
     align-items: stretch;

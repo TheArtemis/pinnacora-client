@@ -5,6 +5,8 @@ import Game from './pages/Game'
 import Login from './pages/Login'
 import Lobby from './pages/Lobby'
 import Register from './pages/Register'
+import TournamentDetail from './pages/TournamentDetail'
+import Tournaments from './pages/Tournaments'
 
 function App() {
   return (
@@ -22,6 +24,22 @@ function App() {
         element={
           <RequireAuth>
             <Game />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tournaments"
+        element={
+          <RequireAuth>
+            <Tournaments />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tournaments/:tournamentId"
+        element={
+          <RequireAuth>
+            <TournamentDetail />
           </RequireAuth>
         }
       />
