@@ -142,6 +142,11 @@ button:disabled {
   color: #fff;
 }
 
+.secondary-button--active {
+  color: #fff;
+  background: var(--accent-strong);
+}
+
 .join-form {
   display: grid;
   gap: 8px;
@@ -258,6 +263,17 @@ button:disabled {
   flex-wrap: wrap;
   gap: 10px;
   min-height: 132px;
+  border: 2px dashed transparent;
+  border-radius: 18px;
+  padding: 6px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.discard-pile--drop-target {
+  border-color: var(--accent);
+  background: rgba(244, 171, 53, 0.16);
 }
 
 .playing-card {
@@ -323,6 +339,13 @@ button:disabled {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.hand-sort-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
 }
 
 .tournaments-page {

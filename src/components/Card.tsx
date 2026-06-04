@@ -1,11 +1,15 @@
 import type { Card as CardType } from '../game/cardTypes'
+import type { DragEventHandler } from 'react'
 
 type CardProps = {
   card: CardType
   hidden?: boolean
   selected?: boolean
   disabled?: boolean
+  draggable?: boolean
   onClick?: () => void
+  onDragEnd?: () => void
+  onDragStart?: DragEventHandler<HTMLElement>
   onMouseEnter?: () => void
 }
 
@@ -22,7 +26,10 @@ export default function Card({
   hidden = false,
   selected = false,
   disabled = false,
+  draggable = false,
   onClick,
+  onDragEnd,
+  onDragStart,
   onMouseEnter,
 }: CardProps) {
   if (hidden) {
@@ -30,9 +37,10 @@ export default function Card({
   }
 
   const isRed = card.suit === 'diamonds' || card.suit === 'hearts'
+  const canDrag = draggable && !disabled
   const className = [
     'playing-card',
-    onClick ? 'playing-card-button' : '',
+    onClick || canDrag ? 'playing-card-button' : '',
     isRed ? 'playing-card--red' : '',
     selected ? 'playing-card--selected' : '',
   ]
@@ -53,7 +61,10 @@ export default function Card({
       <button
         type="button"
         className={className}
+        draggable={canDrag}
         onClick={onClick}
+        onDragEnd={onDragEnd}
+        onDragStart={canDrag ? onDragStart : undefined}
         onMouseEnter={onMouseEnter}
         disabled={disabled}
         aria-pressed={selected}
@@ -64,7 +75,13 @@ export default function Card({
   }
 
   return (
-    <div className={className} onMouseEnter={onMouseEnter}>
+    <div
+      className={className}
+      draggable={canDrag}
+      onDragEnd={onDragEnd}
+      onDragStart={canDrag ? onDragStart : undefined}
+      onMouseEnter={onMouseEnter}
+    >
       {contents}
     </div>
   )

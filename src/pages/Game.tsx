@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type DragEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import Card from '../components/Card'
@@ -6,6 +6,35 @@ import type { Card as CardType } from '../game/cardTypes'
 import type { ServerGameState } from '../game/serverTypes'
 import { connectSocket, socket } from '../socket'
 import { useAuth } from '../auth/useAuth'
+
+type HandSortMode = 'suit' | 'value'
+
+const suitOrder: Record<CardType['suit'], number> = {
+  clubs: 0,
+  diamonds: 1,
+  hearts: 2,
+  spades: 3,
+  joker: 4,
+}
+
+const rankOrder: Record<CardType['rank'], number> = {
+  A: 0,
+  '2': 1,
+  '3': 2,
+  '4': 3,
+  '5': 4,
+  '6': 5,
+  '7': 6,
+  '8': 7,
+  '9': 8,
+  '10': 9,
+  J: 10,
+  Q: 11,
+  K: 12,
+  JOKER: 13,
+}
+
+const emptyHand: CardType[] = []
 
 function statusText(state: ServerGameState | null) {
   if (!state) {
@@ -47,6 +76,9 @@ export default function Game() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [selectedDiscardPileStartIndex, setSelectedDiscardPileStartIndex] = useState<number | null>(null)
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
+  const [handSortMode, setHandSortMode] = useState<HandSortMode>('suit')
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
+  const [isDiscardPileDropTargetActive, setIsDiscardPileDropTargetActive] = useState(false)
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -55,7 +87,24 @@ export default function Game() {
   const isMyTurn = Boolean(serverState?.youPlayerId && serverState.currentPlayerId === serverState.youPlayerId)
   const canDraw = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'draw'
   const canDiscard = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'discard'
-  const hand = currentPlayer?.hand ?? []
+  const hand = currentPlayer?.hand ?? emptyHand
+  const sortedHand = useMemo(() => {
+    return hand
+      .map((card, index) => ({ card, index }))
+      .sort((left, right) => {
+        const primaryDifference =
+          handSortMode === 'suit'
+            ? suitOrder[left.card.suit] - suitOrder[right.card.suit]
+            : rankOrder[left.card.rank] - rankOrder[right.card.rank]
+        const secondaryDifference =
+          handSortMode === 'suit'
+            ? rankOrder[left.card.rank] - rankOrder[right.card.rank]
+            : suitOrder[left.card.suit] - suitOrder[right.card.suit]
+
+        return primaryDifference || secondaryDifference || left.index - right.index
+      })
+      .map(({ card }) => card)
+  }, [hand, handSortMode])
   const discardPile = serverState?.discardPile ?? []
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
   const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
@@ -87,6 +136,8 @@ export default function Game() {
       setSelectedCardId(null)
       setSelectedDiscardPileStartIndex(null)
       setHoveredDiscardPileStartIndex(null)
+      setDraggedCardId(null)
+      setIsDiscardPileDropTargetActive(false)
       setGameError('')
     }
 
@@ -153,14 +204,56 @@ export default function Game() {
     socket.emit('pick_up_discard_pile', { count: discardPile.length - cardIndex })
   }
 
-  function handleDiscardCard(card: CardType) {
+  function handleDiscardCard(cardId: string) {
     if (!canDiscard) {
       return
     }
 
+    setSelectedCardId(cardId)
+    setGameError('')
+    socket.emit('discard_card', { cardId })
+  }
+
+  function handleHandCardDragStart(event: DragEvent<HTMLElement>, card: CardType) {
+    if (!canDiscard) {
+      return
+    }
+
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', card.id)
+    setDraggedCardId(card.id)
     setSelectedCardId(card.id)
     setGameError('')
-    socket.emit('discard_card', { cardId: card.id })
+  }
+
+  function handleHandCardDragEnd() {
+    setDraggedCardId(null)
+    setIsDiscardPileDropTargetActive(false)
+  }
+
+  function handleDiscardPileDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!canDiscard || !draggedCardId) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setIsDiscardPileDropTargetActive(true)
+  }
+
+  function handleDiscardPileDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+
+    const droppedCardId = draggedCardId || event.dataTransfer.getData('text/plain')
+
+    if (!canDiscard || !droppedCardId) {
+      setIsDiscardPileDropTargetActive(false)
+      return
+    }
+
+    handleDiscardCard(droppedCardId)
+    setDraggedCardId(null)
+    setIsDiscardPileDropTargetActive(false)
   }
 
   async function handleFinishGame() {
@@ -228,12 +321,18 @@ export default function Game() {
           {canPickUpDiscardPile ? (
             <p className="muted">Or choose a discard card to pick it up with every newer discard.</p>
           ) : null}
-          {canDiscard ? <p className="muted">Choose a card from your hand to discard.</p> : null}
+          {canDiscard ? <p className="muted">Drag a card from your hand to the discard pile.</p> : null}
         </div>
 
         <div className="table-zone">
           <h2>Discard pile</h2>
-          <div className="discard-pile" onMouseLeave={() => setHoveredDiscardPileStartIndex(null)}>
+          <div
+            className={isDiscardPileDropTargetActive ? 'discard-pile discard-pile--drop-target' : 'discard-pile'}
+            onDragLeave={() => setIsDiscardPileDropTargetActive(false)}
+            onDragOver={handleDiscardPileDragOver}
+            onDrop={handleDiscardPileDrop}
+            onMouseLeave={() => setHoveredDiscardPileStartIndex(null)}
+          >
             {discardPile.map((card, index) => (
               <Card
                 card={card}
@@ -251,13 +350,15 @@ export default function Game() {
         <div className="table-zone">
           <h2>Your hand</h2>
           <div className="hand">
-            {hand.map((card) => (
+            {sortedHand.map((card) => (
               <Card
                 card={card}
+                draggable={canDiscard}
                 disabled={!canDiscard}
                 key={card.id}
-                onClick={canDiscard ? () => handleDiscardCard(card) : undefined}
-                selected={selectedCardId === card.id}
+                onDragEnd={handleHandCardDragEnd}
+                onDragStart={canDiscard ? (event) => handleHandCardDragStart(event, card) : undefined}
+                selected={selectedCardId === card.id || draggedCardId === card.id}
               />
             ))}
             {serverState && hand.length === 0 ? <p className="muted">Your cards will appear when both players connect.</p> : null}
@@ -267,6 +368,24 @@ export default function Game() {
 
       <footer className="game-footer">
         <span>{statusText(serverState)}</span>
+        <div className="hand-sort-actions" aria-label="Hand sorting">
+          <button
+            type="button"
+            className={handSortMode === 'suit' ? 'secondary-button secondary-button--active' : 'secondary-button'}
+            onClick={() => setHandSortMode('suit')}
+            aria-pressed={handSortMode === 'suit'}
+          >
+            Order by suit
+          </button>
+          <button
+            type="button"
+            className={handSortMode === 'value' ? 'secondary-button secondary-button--active' : 'secondary-button'}
+            onClick={() => setHandSortMode('value')}
+            aria-pressed={handSortMode === 'value'}
+          >
+            Order by value
+          </button>
+        </div>
         <div className="game-actions">
           {isTournamentGame ? (
             <button type="button" onClick={handleFinishGame} disabled={finishing}>
