@@ -26,7 +26,7 @@ function statusText(state: ServerGameState | null) {
 
   const currentPlayer = state.players.find((player) => player.id === state.currentPlayerId)
   const currentName = currentPlayer?.id === state.youPlayerId ? 'Your' : `${currentPlayer?.name ?? 'Player'}'s`
-  const action = state.phase === 'draw' ? 'draw a card' : 'discard a card'
+  const action = state.phase === 'draw' ? 'draw from the deck or discard pile' : 'discard a card'
 
   return `${currentName} turn to ${action}.`
 }
@@ -45,6 +45,8 @@ export default function Game() {
   const [gameError, setGameError] = useState('')
   const [finishing, setFinishing] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [selectedDiscardPileStartIndex, setSelectedDiscardPileStartIndex] = useState<number | null>(null)
+  const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -54,6 +56,9 @@ export default function Game() {
   const canDraw = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'draw'
   const canDiscard = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'discard'
   const hand = currentPlayer?.hand ?? []
+  const discardPile = serverState?.discardPile ?? []
+  const canPickUpDiscardPile = canDraw && discardPile.length > 0
+  const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
 
   useEffect(() => {
     if (!user) {
@@ -80,6 +85,8 @@ export default function Game() {
     function handleGameState(nextState: ServerGameState) {
       setServerState(nextState)
       setSelectedCardId(null)
+      setSelectedDiscardPileStartIndex(null)
+      setHoveredDiscardPileStartIndex(null)
       setGameError('')
     }
 
@@ -130,6 +137,20 @@ export default function Game() {
 
     setGameError('')
     socket.emit('draw_card')
+  }
+
+  function handlePickUpDiscardPile(cardIndex: number) {
+    if (!canPickUpDiscardPile) {
+      return
+    }
+
+    if (!discardPile[cardIndex]) {
+      return
+    }
+
+    setSelectedDiscardPileStartIndex(cardIndex)
+    setGameError('')
+    socket.emit('pick_up_discard_pile', { count: discardPile.length - cardIndex })
   }
 
   function handleDiscardCard(card: CardType) {
@@ -204,14 +225,26 @@ export default function Game() {
           <button type="button" onClick={handleDrawCard} disabled={!canDraw}>
             Draw card
           </button>
+          {canPickUpDiscardPile ? (
+            <p className="muted">Or choose a discard card to pick it up with every newer discard.</p>
+          ) : null}
           {canDiscard ? <p className="muted">Choose a card from your hand to discard.</p> : null}
         </div>
 
         <div className="table-zone">
           <h2>Discard pile</h2>
-          <div className="discard-pile">
-            {serverState?.discardPile.map((card) => <Card card={card} key={card.id} />)}
-            {serverState?.discardPile.length === 0 ? <p className="muted">No discarded cards yet.</p> : null}
+          <div className="discard-pile" onMouseLeave={() => setHoveredDiscardPileStartIndex(null)}>
+            {discardPile.map((card, index) => (
+              <Card
+                card={card}
+                disabled={!canPickUpDiscardPile}
+                key={card.id}
+                onClick={canPickUpDiscardPile ? () => handlePickUpDiscardPile(index) : undefined}
+                onMouseEnter={canPickUpDiscardPile ? () => setHoveredDiscardPileStartIndex(index) : undefined}
+                selected={discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex}
+              />
+            ))}
+            {discardPile.length === 0 ? <p className="muted">No discarded cards yet.</p> : null}
           </div>
         </div>
 

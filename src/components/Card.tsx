@@ -6,6 +6,7 @@ type CardProps = {
   selected?: boolean
   disabled?: boolean
   onClick?: () => void
+  onMouseEnter?: () => void
 }
 
 const suitSymbols: Record<CardType['suit'], string> = {
@@ -16,7 +17,14 @@ const suitSymbols: Record<CardType['suit'], string> = {
   joker: 'Joker',
 }
 
-export default function Card({ card, hidden = false, selected = false, disabled = false, onClick }: CardProps) {
+export default function Card({
+  card,
+  hidden = false,
+  selected = false,
+  disabled = false,
+  onClick,
+  onMouseEnter,
+}: CardProps) {
   if (hidden) {
     return <div className="playing-card playing-card--hidden">P</div>
   }
@@ -42,14 +50,21 @@ export default function Card({ card, hidden = false, selected = false, disabled 
 
   if (onClick) {
     return (
-      <button type="button" className={className} onClick={onClick} disabled={disabled} aria-pressed={selected}>
+      <button
+        type="button"
+        className={className}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        disabled={disabled}
+        aria-pressed={selected}
+      >
         {contents}
       </button>
     )
   }
 
   return (
-    <div className={className}>
+    <div className={className} onMouseEnter={onMouseEnter}>
       {contents}
     </div>
   )
