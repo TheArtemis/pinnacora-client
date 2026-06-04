@@ -1,4 +1,4 @@
-import type { Card as CardType } from '../game/types'
+import type { Card as CardType } from '../game/cardTypes'
 
 type CardProps = {
   card: CardType
