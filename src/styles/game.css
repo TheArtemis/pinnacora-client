@@ -1,0 +1,238 @@
+.game-page {
+  display: grid;
+  gap: 24px;
+}
+
+.table,
+.game-header,
+.game-footer {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.game-header,
+.game-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 24px;
+}
+
+.connection-pill {
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-weight: 700;
+}
+
+.table {
+  display: grid;
+  gap: 32px;
+  min-height: 460px;
+  padding: 32px;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.12), transparent 34%),
+    var(--table);
+}
+
+.table-zone {
+  display: grid;
+  gap: 16px;
+}
+
+.players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.player {
+  display: flex;
+  justify-content: space-between;
+  border-radius: 18px;
+  padding: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.player div {
+  display: grid;
+  gap: 4px;
+}
+
+.player small,
+.turn-pill {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.table-heading {
+  color: #fff;
+}
+
+.table-controls {
+  grid-template-columns: minmax(0, 1fr) auto minmax(220px, 1fr);
+  align-items: center;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.meld-list {
+  display: grid;
+  gap: 12px;
+}
+
+.player-melds {
+  display: grid;
+  gap: 10px;
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.meld-owner-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #fff;
+}
+
+.meld-owner-heading span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.meld {
+  display: grid;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.meld-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #fff;
+}
+
+.meld-header span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.meld-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.discard-pile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 132px;
+  border: 2px dashed transparent;
+  border-radius: 18px;
+  padding: 6px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.discard-pile--drop-target {
+  border-color: var(--accent);
+  background: rgba(244, 171, 53, 0.16);
+}
+
+.playing-card {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 124px;
+  border: 1px solid rgba(8, 6, 13, 0.12);
+  border-radius: 14px;
+  color: #172033;
+  background: #fff;
+  box-shadow: 0 12px 20px rgba(8, 6, 13, 0.18);
+  font-weight: 800;
+}
+
+.playing-card-button {
+  padding: 0;
+}
+
+.playing-card-button:hover:not(:disabled),
+.playing-card--selected {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 26px rgba(8, 6, 13, 0.24);
+}
+
+.playing-card--selected {
+  border-color: var(--accent);
+  outline: 3px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 4px rgba(244, 171, 53, 0.45),
+    0 18px 26px rgba(8, 6, 13, 0.24);
+}
+
+.playing-card-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.playing-card--red {
+  color: #b3263a;
+}
+
+.playing-card--hidden {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
+.playing-card__rank {
+  font-size: 1.6rem;
+}
+
+.playing-card__suit {
+  font-size: 2rem;
+}
+
+.game-footer a {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.game-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.hand-sort-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}

@@ -1,0 +1,31 @@
+@media (max-width: 760px) {
+  .page-shell {
+    width: min(100% - 20px, 1120px);
+    padding: 20px 0;
+  }
+
+  .lobby {
+    grid-template-columns: 1fr;
+  }
+
+  .game-header,
+  .game-footer,
+  .game-actions,
+  .dashboard-header,
+  .section-heading,
+  .game-row,
+  .standing-row,
+  .top-bar,
+  .join-form__row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .join-form input {
+    width: auto;
+  }
+}

@@ -1,0 +1,106 @@
+.page-shell {
+  width: min(1120px, calc(100% - 32px));
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.15rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+button,
+input {
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  padding: 13px 22px;
+  color: #fff;
+  background: var(--accent);
+  font-weight: 700;
+}
+
+button:hover {
+  background: var(--accent-strong);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.primary-link,
+.secondary-link,
+.text-link {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primary-link,
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.primary-link {
+  min-height: 54px;
+  padding: 13px 22px;
+  color: #fff;
+  background: var(--accent);
+}
+
+.primary-link:hover {
+  background: var(--accent-strong);
+}
+
+.secondary-link {
+  padding: 9px 14px;
+  background: var(--accent-bg);
+}
+
+.primary-button {
+  min-height: 54px;
+}
+
+.secondary-button {
+  padding: 9px 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.secondary-button:hover {
+  color: #fff;
+}
+
+.secondary-button--active {
+  color: #fff;
+  background: var(--accent-strong);
+}
+
+.form-error {
+  color: #b3263a;
+  font-weight: 700;
+}

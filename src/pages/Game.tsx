@@ -364,25 +364,34 @@ export default function Game() {
         <div className="table-zone">
           <h2>Combinations on table</h2>
           <div className="meld-list">
-            {serverState?.melds.map((meld) => {
-              const owner = serverState.players.find((player) => player.id === meld.playerId)
-              const ownerName = owner?.id === serverState.youPlayerId ? 'You' : owner?.name ?? 'Player'
+            {serverState?.players.map((player) => {
+              const playerMelds = serverState.melds.filter((meld) => meld.playerId === player.id)
+              const playerName = player.id === serverState.youPlayerId ? 'Your combinations' : `${player.name}'s combinations`
 
               return (
-                <article className="meld" key={meld.id}>
-                  <div className="meld-header">
-                    <strong>{ownerName}</strong>
-                    <span>{meld.type === 'set' ? 'Same value' : 'Sequence'}</span>
+                <section className="player-melds" key={player.id}>
+                  <div className="meld-owner-heading">
+                    <strong>{playerName}</strong>
+                    <span>{playerMelds.length}</span>
                   </div>
-                  <div className="meld-cards">
-                    {meld.cards.map((card) => (
-                      <Card card={card} key={card.id} />
-                    ))}
-                  </div>
-                </article>
+                  {playerMelds.map((meld) => (
+                    <article className="meld" key={meld.id}>
+                      <div className="meld-header">
+                        <strong>{meld.type === 'set' ? 'Same value' : 'Sequence'}</strong>
+                        <span>{meld.cards.length} cards</span>
+                      </div>
+                      <div className="meld-cards">
+                        {meld.cards.map((card) => (
+                          <Card card={card} key={card.id} />
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                  {playerMelds.length === 0 ? <p className="muted">No combinations put down yet.</p> : null}
+                </section>
               )
             })}
-            {serverState && serverState.melds.length === 0 ? <p className="muted">No combinations yet.</p> : null}
+            {!serverState ? <p className="muted">Combinations will appear here.</p> : null}
           </div>
         </div>
 
