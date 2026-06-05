@@ -11,6 +11,13 @@ export type ServerGamePlayer = {
   hand?: Card[]
 }
 
+export type ServerGameMeld = {
+  id: string
+  playerId: string
+  type: 'set' | 'sequence'
+  cards: Card[]
+}
+
 export type ServerGameState = {
   id: string
   status: ServerGameStatus
@@ -18,6 +25,7 @@ export type ServerGameState = {
   players: ServerGamePlayer[]
   deckCount: number
   discardPile: Card[]
+  melds: ServerGameMeld[]
   currentPlayerId?: string
   youPlayerId?: string
 }

@@ -9,8 +9,19 @@ import {
 } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 
+function tournamentLink(tournamentId: string) {
+  return `${window.location.origin}/tournaments/${tournamentId}`
+}
+
 function TournamentCard({ tournament }: { tournament: Tournament }) {
   const leader = tournament.results.standings[0]
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopyTournamentLink() {
+    await navigator.clipboard.writeText(tournamentLink(tournament.id))
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
 
   return (
     <article className="tournament-card">
@@ -36,9 +47,14 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
           <dd>{leader?.user.displayName ?? leader?.user.email ?? 'No results yet'}</dd>
         </div>
       </dl>
-      <Link className="text-link" to={`/tournaments/${tournament.id}`}>
-        Open tournament
-      </Link>
+      <div className="tournament-card-actions">
+        <Link className="text-link" to={`/tournaments/${tournament.id}`}>
+          Open tournament
+        </Link>
+        <button type="button" className="secondary-button" onClick={handleCopyTournamentLink}>
+          {copied ? 'Copied!' : 'Copy link'}
+        </button>
+      </div>
     </article>
   )
 }

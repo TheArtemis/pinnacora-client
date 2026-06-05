@@ -19,6 +19,10 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function tournamentLink(tournamentId: string) {
+  return `${window.location.origin}/tournaments/${tournamentId}`
+}
+
 export default function TournamentDetail() {
   const navigate = useNavigate()
   const { tournamentId = '' } = useParams()
@@ -27,6 +31,7 @@ export default function TournamentDetail() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   useEffect(() => {
     if (!user || !tournamentId) {
@@ -102,6 +107,16 @@ export default function TournamentDetail() {
     }
   }
 
+  async function handleCopyTournamentLink() {
+    if (!tournament) {
+      return
+    }
+
+    await navigator.clipboard.writeText(tournamentLink(tournament.id))
+    setCopiedLink(true)
+    window.setTimeout(() => setCopiedLink(false), 1800)
+  }
+
   if (loading) {
     return (
       <main className="page-shell tournaments-page">
@@ -129,9 +144,14 @@ export default function TournamentDetail() {
           <h1>{tournament.name}</h1>
           <p className="lede">Private join code: {tournament.joinCode}</p>
         </div>
-        <Link className="secondary-link" to="/tournaments">
-          All tournaments
-        </Link>
+        <div className="header-actions">
+          <button type="button" className="secondary-button" onClick={handleCopyTournamentLink}>
+            {copiedLink ? 'Copied!' : 'Copy tournament link'}
+          </button>
+          <Link className="secondary-link" to="/tournaments">
+            All tournaments
+          </Link>
+        </div>
       </header>
 
       {error ? <p className="form-error">{error}</p> : null}

@@ -258,6 +258,42 @@ button:disabled {
   gap: 12px;
 }
 
+.meld-list {
+  display: grid;
+  gap: 12px;
+}
+
+.meld {
+  display: grid;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.meld-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #fff;
+}
+
+.meld-header span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.meld-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .discard-pile {
   display: flex;
   flex-wrap: wrap;
@@ -433,6 +469,22 @@ button:disabled {
 .tournament-card {
   display: grid;
   gap: 16px;
+}
+
+.tournament-card-actions,
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.tournament-card-actions {
+  justify-content: space-between;
+}
+
+.header-actions {
+  justify-content: flex-end;
 }
 
 .stats-grid {
