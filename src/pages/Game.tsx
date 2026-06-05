@@ -73,7 +73,9 @@ export default function Game() {
   const [finishError, setFinishError] = useState('')
   const [gameError, setGameError] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const [copiedGameLink, setCopiedGameLink] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const [selectedMeldCardIds, setSelectedMeldCardIds] = useState<string[]>([])
   const [selectedDiscardPileStartIndex, setSelectedDiscardPileStartIndex] = useState<number | null>(null)
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('suit')
@@ -87,6 +89,7 @@ export default function Game() {
   const isMyTurn = Boolean(serverState?.youPlayerId && serverState.currentPlayerId === serverState.youPlayerId)
   const canDraw = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'draw'
   const canDiscard = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'discard'
+  const canPutDownMeld = canDiscard
   const hand = currentPlayer?.hand ?? emptyHand
   const sortedHand = useMemo(() => {
     return hand
@@ -108,6 +111,7 @@ export default function Game() {
   const discardPile = serverState?.discardPile ?? []
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
   const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
+  const selectedMeldCardIdSet = useMemo(() => new Set(selectedMeldCardIds), [selectedMeldCardIds])
 
   useEffect(() => {
     if (!user) {
@@ -134,6 +138,7 @@ export default function Game() {
     function handleGameState(nextState: ServerGameState) {
       setServerState(nextState)
       setSelectedCardId(null)
+      setSelectedMeldCardIds([])
       setSelectedDiscardPileStartIndex(null)
       setHoveredDiscardPileStartIndex(null)
       setDraggedCardId(null)
@@ -214,6 +219,27 @@ export default function Game() {
     socket.emit('discard_card', { cardId })
   }
 
+  function handleToggleMeldCard(card: CardType) {
+    if (!canPutDownMeld) {
+      return
+    }
+
+    setSelectedMeldCardIds((currentCardIds) =>
+      currentCardIds.includes(card.id)
+        ? currentCardIds.filter((cardId) => cardId !== card.id)
+        : [...currentCardIds, card.id],
+    )
+  }
+
+  function handlePutDownMeld() {
+    if (!canPutDownMeld || selectedMeldCardIds.length < 3) {
+      return
+    }
+
+    setGameError('')
+    socket.emit('put_down_meld', { cardIds: selectedMeldCardIds })
+  }
+
   function handleHandCardDragStart(event: DragEvent<HTMLElement>, card: CardType) {
     if (!canDiscard) {
       return
@@ -274,6 +300,12 @@ export default function Game() {
     }
   }
 
+  async function handleCopyGameLink() {
+    await navigator.clipboard.writeText(window.location.href)
+    setCopiedGameLink(true)
+    window.setTimeout(() => setCopiedGameLink(false), 1800)
+  }
+
   return (
     <main className="page-shell game-page">
       <header className="game-header">
@@ -286,7 +318,12 @@ export default function Game() {
               : 'Share this code with your girlfriend so she can join.'}
           </p>
         </div>
-        <div className="connection-pill">{connectionStatus}</div>
+        <div className="header-actions">
+          <button type="button" className="secondary-button" onClick={handleCopyGameLink}>
+            {copiedGameLink ? 'Copied!' : 'Copy game link'}
+          </button>
+          <div className="connection-pill">{connectionStatus}</div>
+        </div>
       </header>
 
       <section className="table">
@@ -325,6 +362,31 @@ export default function Game() {
         </div>
 
         <div className="table-zone">
+          <h2>Combinations on table</h2>
+          <div className="meld-list">
+            {serverState?.melds.map((meld) => {
+              const owner = serverState.players.find((player) => player.id === meld.playerId)
+              const ownerName = owner?.id === serverState.youPlayerId ? 'You' : owner?.name ?? 'Player'
+
+              return (
+                <article className="meld" key={meld.id}>
+                  <div className="meld-header">
+                    <strong>{ownerName}</strong>
+                    <span>{meld.type === 'set' ? 'Same value' : 'Sequence'}</span>
+                  </div>
+                  <div className="meld-cards">
+                    {meld.cards.map((card) => (
+                      <Card card={card} key={card.id} />
+                    ))}
+                  </div>
+                </article>
+              )
+            })}
+            {serverState && serverState.melds.length === 0 ? <p className="muted">No combinations yet.</p> : null}
+          </div>
+        </div>
+
+        <div className="table-zone">
           <h2>Discard pile</h2>
           <div
             className={isDiscardPileDropTargetActive ? 'discard-pile discard-pile--drop-target' : 'discard-pile'}
@@ -348,7 +410,14 @@ export default function Game() {
         </div>
 
         <div className="table-zone">
-          <h2>Your hand</h2>
+          <div className="section-heading table-heading">
+            <h2>Your hand</h2>
+            {canPutDownMeld ? (
+              <button type="button" onClick={handlePutDownMeld} disabled={selectedMeldCardIds.length < 3}>
+                Put down combination
+              </button>
+            ) : null}
+          </div>
           <div className="hand">
             {sortedHand.map((card) => (
               <Card
@@ -356,9 +425,10 @@ export default function Game() {
                 draggable={canDiscard}
                 disabled={!canDiscard}
                 key={card.id}
+                onClick={canPutDownMeld ? () => handleToggleMeldCard(card) : undefined}
                 onDragEnd={handleHandCardDragEnd}
                 onDragStart={canDiscard ? (event) => handleHandCardDragStart(event, card) : undefined}
-                selected={selectedCardId === card.id || draggedCardId === card.id}
+                selected={selectedMeldCardIdSet.has(card.id) || selectedCardId === card.id || draggedCardId === card.id}
               />
             ))}
             {serverState && hand.length === 0 ? <p className="muted">Your cards will appear when both players connect.</p> : null}
