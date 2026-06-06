@@ -165,6 +165,56 @@
   background: rgba(244, 171, 53, 0.16);
 }
 
+.pickup-hint {
+  border-radius: 16px;
+  padding: 10px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+}
+
+.pickup-hint--valid {
+  color: #1b5e20;
+  background: rgba(226, 246, 214, 0.92);
+}
+
+.pickup-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.pickup-preview-section {
+  display: grid;
+  gap: 10px;
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pickup-preview-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #fff;
+}
+
+.pickup-preview-heading span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.pickup-preview-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .playing-card {
   display: grid;
   place-items: center;

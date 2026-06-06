@@ -168,6 +168,11 @@ export default function Game() {
   const canDiscard = serverState?.status === 'playing' && isMyTurn && serverState.phase === 'discard'
   const canPutDownMeld = canDiscard
   const hand = currentPlayer?.hand ?? emptyHand
+  const selectedMeldCards = useMemo(() => {
+    return selectedMeldCardIds
+      .map((cardId) => hand.find((card) => card.id === cardId))
+      .filter((card): card is CardType => Boolean(card))
+  }, [hand, selectedMeldCardIds])
   const sortedHand = useMemo(() => {
     return hand
       .map((card, index) => ({ card, index }))
@@ -187,8 +192,20 @@ export default function Game() {
   }, [hand, handSortMode])
   const discardPile = serverState?.discardPile ?? []
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
+  const canSelectMeldCards = canPutDownMeld || canPickUpDiscardPile
   const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
   const selectedMeldCardIdSet = useMemo(() => new Set(selectedMeldCardIds), [selectedMeldCardIds])
+  const discardPileCombinationCard =
+    discardPileHighlightStartIndex === null ? undefined : discardPile[discardPileHighlightStartIndex]
+  const discardPileCardsAddedToHand =
+    discardPileHighlightStartIndex === null ? [] : discardPile.slice(discardPileHighlightStartIndex + 1)
+  const discardPilePickupError =
+    canPickUpDiscardPile && discardPileCombinationCard
+      ? validateMeld([discardPileCombinationCard, ...selectedMeldCards])
+      : ''
+  const discardPilePickupCombination = discardPileCombinationCard
+    ? [discardPileCombinationCard, ...selectedMeldCards]
+    : selectedMeldCards
 
   useEffect(() => {
     if (!user) {
@@ -282,8 +299,16 @@ export default function Game() {
     }
 
     setSelectedDiscardPileStartIndex(cardIndex)
+
+    const meldError = validateMeld([discardPile[cardIndex], ...selectedMeldCards])
+
+    if (meldError) {
+      setGameError(`Cannot pick up from that card: ${meldError}`)
+      return
+    }
+
     setGameError('')
-    socket.emit('pick_up_discard_pile', { count: discardPile.length - cardIndex })
+    socket.emit('pick_up_discard_pile', { count: discardPile.length - cardIndex, cardIds: selectedMeldCardIds })
   }
 
   function handleDiscardCard(cardId: string) {
@@ -297,7 +322,7 @@ export default function Game() {
   }
 
   function handleToggleMeldCard(card: CardType) {
-    if (!canPutDownMeld) {
+    if (!canSelectMeldCards) {
       return
     }
 
@@ -314,9 +339,6 @@ export default function Game() {
       return
     }
 
-    const selectedMeldCards = selectedMeldCardIds
-      .map((cardId) => hand.find((card) => card.id === cardId))
-      .filter((card): card is CardType => Boolean(card))
     const meldError = validateMeld(selectedMeldCards)
 
     if (meldError) {
@@ -444,7 +466,9 @@ export default function Game() {
             Draw card
           </button>
           {canPickUpDiscardPile ? (
-            <p className="muted">Or choose a discard card to pick it up with every newer discard.</p>
+            <p className="muted">
+              To pick up discards, select hand cards first, then choose the deepest discard card they combine with.
+            </p>
           ) : null}
           {canDiscard ? <p className="muted">Drag a card from your hand to the discard pile.</p> : null}
         </div>
@@ -485,6 +509,45 @@ export default function Game() {
 
         <div className="table-zone">
           <h2>Discard pile</h2>
+          {canPickUpDiscardPile ? (
+            <p className={discardPileCombinationCard && !discardPilePickupError ? 'pickup-hint pickup-hint--valid' : 'pickup-hint'}>
+              {discardPileCombinationCard
+                ? discardPilePickupError
+                  ? `No pickup combination yet: ${discardPilePickupError}`
+                  : 'Valid pickup: that discard card combines with your selected hand cards.'
+                : 'Select hand cards, then hover a discard card to check whether you can pick up that sequence.'}
+            </p>
+          ) : null}
+          {canPickUpDiscardPile && discardPileCombinationCard ? (
+            <div className="pickup-preview">
+              <section className="pickup-preview-section">
+                <div className="pickup-preview-heading">
+                  <strong>Will be put down</strong>
+                  <span>{discardPilePickupCombination.length} cards</span>
+                </div>
+                <div className="pickup-preview-cards">
+                  {discardPilePickupCombination.map((card) => (
+                    <Card card={card} key={card.id} selected={card.id === discardPileCombinationCard.id} />
+                  ))}
+                </div>
+                <p className="muted">The highlighted discard card must be part of this combination.</p>
+              </section>
+              <section className="pickup-preview-section">
+                <div className="pickup-preview-heading">
+                  <strong>Will be added to hand</strong>
+                  <span>{discardPileCardsAddedToHand.length} cards</span>
+                </div>
+                <div className="pickup-preview-cards">
+                  {discardPileCardsAddedToHand.map((card) => (
+                    <Card card={card} key={card.id} />
+                  ))}
+                  {discardPileCardsAddedToHand.length === 0 ? (
+                    <p className="muted">No newer discard cards above it.</p>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
           <div
             className={isDiscardPileDropTargetActive ? 'discard-pile discard-pile--drop-target' : 'discard-pile'}
             onDragLeave={() => setIsDiscardPileDropTargetActive(false)}
@@ -520,9 +583,9 @@ export default function Game() {
               <Card
                 card={card}
                 draggable={canDiscard}
-                disabled={!canDiscard}
+                disabled={!canSelectMeldCards}
                 key={card.id}
-                onClick={canPutDownMeld ? () => handleToggleMeldCard(card) : undefined}
+                onClick={canSelectMeldCards ? () => handleToggleMeldCard(card) : undefined}
                 onDragEnd={handleHandCardDragEnd}
                 onDragStart={canDiscard ? (event) => handleHandCardDragStart(event, card) : undefined}
                 selected={selectedMeldCardIdSet.has(card.id) || selectedCardId === card.id || draggedCardId === card.id}
