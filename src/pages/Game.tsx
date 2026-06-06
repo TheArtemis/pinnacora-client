@@ -53,14 +53,26 @@ const sequenceRankOrder: Record<CardType['rank'], number> = {
 
 const emptyHand: CardType[] = []
 
-function isSequential(values: number[]) {
-  return values.every((value, index) => index === 0 || value === values[index - 1] + 1)
-}
-
 function sequenceValues(cards: CardType[], aceHigh: boolean) {
   return cards
+    .filter((card) => card.rank !== 'JOKER')
     .map((card) => (aceHigh && card.rank === 'A' ? 14 : sequenceRankOrder[card.rank]))
     .sort((left, right) => left - right)
+}
+
+function isJoker(card: CardType) {
+  return card.rank === 'JOKER' || card.suit === 'joker'
+}
+
+function canFitSequence(values: number[], totalCards: number) {
+  const firstValue = values[0]
+  const lastValue = values[values.length - 1]
+
+  if (firstValue === undefined || lastValue === undefined) {
+    return false
+  }
+
+  return lastValue - firstValue + 1 <= totalCards
 }
 
 function validateMeld(cards: CardType[]) {
@@ -68,26 +80,33 @@ function validateMeld(cards: CardType[]) {
     return 'Choose at least three cards for a combination.'
   }
 
-  if (cards.some((card) => card.rank === 'JOKER' || card.suit === 'joker')) {
-    return 'Jokers cannot be used in combinations yet.'
+  const naturalCards = cards.filter((card) => !isJoker(card))
+
+  if (naturalCards.length === 0) {
+    return 'Choose at least one non-joker card for the combination.'
   }
 
-  const uniqueRanks = new Set(cards.map((card) => card.rank))
-  const uniqueSuits = new Set(cards.map((card) => card.suit))
+  const uniqueRanks = new Set(naturalCards.map((card) => card.rank))
+  const uniqueSuits = new Set(naturalCards.map((card) => card.suit))
 
   if (uniqueRanks.size === 1) {
-    return uniqueSuits.size === cards.length ? '' : 'Same-value combinations need different suits.'
+    if (cards.length > 4) {
+      return 'Same-value combinations can only use four cards, one for each suit.'
+    }
+
+    return uniqueSuits.size === naturalCards.length ? '' : 'Same-value combinations need different suits.'
   }
 
   if (uniqueSuits.size !== 1) {
     return 'Sequences must all be the same suit.'
   }
 
-  if (uniqueRanks.size !== cards.length) {
+  if (uniqueRanks.size !== naturalCards.length) {
     return 'Sequences cannot contain duplicate values.'
   }
 
-  if (isSequential(sequenceValues(cards, false)) || isSequential(sequenceValues(cards, true))) {
+  if (canFitSequence(sequenceValues(naturalCards, false), cards.length) ||
+    canFitSequence(sequenceValues(naturalCards, true), cards.length)) {
     return ''
   }
 
