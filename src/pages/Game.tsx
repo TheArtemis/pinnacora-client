@@ -34,7 +34,65 @@ const rankOrder: Record<CardType['rank'], number> = {
   JOKER: 13,
 }
 
+const sequenceRankOrder: Record<CardType['rank'], number> = {
+  A: 1,
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7,
+  '8': 8,
+  '9': 9,
+  '10': 10,
+  J: 11,
+  Q: 12,
+  K: 13,
+  JOKER: 0,
+}
+
 const emptyHand: CardType[] = []
+
+function isSequential(values: number[]) {
+  return values.every((value, index) => index === 0 || value === values[index - 1] + 1)
+}
+
+function sequenceValues(cards: CardType[], aceHigh: boolean) {
+  return cards
+    .map((card) => (aceHigh && card.rank === 'A' ? 14 : sequenceRankOrder[card.rank]))
+    .sort((left, right) => left - right)
+}
+
+function validateMeld(cards: CardType[]) {
+  if (cards.length < 3) {
+    return 'Choose at least three cards for a combination.'
+  }
+
+  if (cards.some((card) => card.rank === 'JOKER' || card.suit === 'joker')) {
+    return 'Jokers cannot be used in combinations yet.'
+  }
+
+  const uniqueRanks = new Set(cards.map((card) => card.rank))
+  const uniqueSuits = new Set(cards.map((card) => card.suit))
+
+  if (uniqueRanks.size === 1) {
+    return uniqueSuits.size === cards.length ? '' : 'Same-value combinations need different suits.'
+  }
+
+  if (uniqueSuits.size !== 1) {
+    return 'Sequences must all be the same suit.'
+  }
+
+  if (uniqueRanks.size !== cards.length) {
+    return 'Sequences cannot contain duplicate values.'
+  }
+
+  if (isSequential(sequenceValues(cards, false)) || isSequential(sequenceValues(cards, true))) {
+    return ''
+  }
+
+  return 'Choose consecutive values for a sequence, like A-2-3, 4-5-6, or J-Q-K-A.'
+}
 
 function statusText(state: ServerGameState | null) {
   if (!state) {
@@ -224,6 +282,7 @@ export default function Game() {
       return
     }
 
+    setGameError('')
     setSelectedMeldCardIds((currentCardIds) =>
       currentCardIds.includes(card.id)
         ? currentCardIds.filter((cardId) => cardId !== card.id)
@@ -232,7 +291,17 @@ export default function Game() {
   }
 
   function handlePutDownMeld() {
-    if (!canPutDownMeld || selectedMeldCardIds.length < 3) {
+    if (!canPutDownMeld) {
+      return
+    }
+
+    const selectedMeldCards = selectedMeldCardIds
+      .map((cardId) => hand.find((card) => card.id === cardId))
+      .filter((card): card is CardType => Boolean(card))
+    const meldError = validateMeld(selectedMeldCards)
+
+    if (meldError) {
+      setGameError(meldError)
       return
     }
 
@@ -422,7 +491,7 @@ export default function Game() {
           <div className="section-heading table-heading">
             <h2>Your hand</h2>
             {canPutDownMeld ? (
-              <button type="button" onClick={handlePutDownMeld} disabled={selectedMeldCardIds.length < 3}>
+              <button type="button" onClick={handlePutDownMeld} disabled={selectedMeldCardIds.length === 0}>
                 Put down combination
               </button>
             ) : null}
