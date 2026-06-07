@@ -88,6 +88,7 @@ export default function DiscardPile({
             selected={selected}
             renderOrder={20 + index}
             layerOnTop
+            fidgetable={!canDropDraggedCard}
             onClick={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardClick(index) : canDiscard ? onDiscardSelectedCard : undefined}
             onPointerOver={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardHover(index) : undefined}
             onPointerOut={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardHover(null) : undefined}

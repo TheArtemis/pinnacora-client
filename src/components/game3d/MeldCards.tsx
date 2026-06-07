@@ -26,6 +26,7 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
   const [materializingMeldCardIds, setMaterializingMeldCardIds] = useState<Set<string>>(() => new Set())
   const [activePointBurstMeldIds, setActivePointBurstMeldIds] = useState<Set<string>>(() => new Set())
   const [hoveredMeldJokerId, setHoveredMeldJokerId] = useState<string | null>(null)
+  const [fidgetTriggers, setFidgetTriggers] = useState<Map<string, number>>(() => new Map())
 
   useEffect(() => {
     const nextMeldCardIds = currentMeldCardKey ? currentMeldCardKey.split('|') : []
@@ -64,6 +65,18 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
     return () => window.clearTimeout(timeoutId)
   }, [currentMeldCardKey, currentMeldKey])
 
+  function triggerMeldFidget(meldCardIds: string[]) {
+    setFidgetTriggers((currentTriggers) => {
+      const nextTriggers = new Map(currentTriggers)
+
+      for (const meldCardId of meldCardIds) {
+        nextTriggers.set(meldCardId, (nextTriggers.get(meldCardId) ?? 0) + 1)
+      }
+
+      return nextTriggers
+    })
+  }
+
   const ownerMeldIndexes = new Map<string, number>()
   const ownerMeldCounts = new Map<string, number>()
 
@@ -87,6 +100,7 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
         const startZ = isLocalMeld ? 5.58 - row * 3.12 : -5.58 + row * 3.12
         const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -6.15]
         const visibleCards = meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
+        const visibleMeldCardIds = visibleCards.map(({ card }) => `${meld.id}-${card.id}`).reverse()
         const cardSpacing = meld.type === 'sequence' ? CARD_HEIGHT * 0.5 : CARD_HEIGHT * 0.42
         const zDirection = isLocalMeld ? -1 : 1
         const burstZ = startZ + ((visibleCards.length - 1) * cardSpacing * zDirection) / 2
@@ -117,7 +131,15 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
                   selected={isSwappableJoker}
                   hovered={isHoveredJoker}
                   outlineColor={isSwappableJoker ? '#3f7a54' : undefined}
-                  onClick={isClickableJoker ? () => onMeldJokerClick(meld.id, card.id) : undefined}
+                  fidgetTrigger={fidgetTriggers.get(meldCardId) ?? 0}
+                  fidgetFallDelay={visibleMeldCardIds.indexOf(meldCardId) * 0.045}
+                  fidgetSideDirection={isLocalMeld ? -1 : 1}
+                  onClick={() => {
+                    triggerMeldFidget(visibleMeldCardIds)
+                    if (isClickableJoker) {
+                      onMeldJokerClick(meld.id, card.id)
+                    }
+                  }}
                   onPointerOver={isClickableJoker ? () => setHoveredMeldJokerId(swappableMeldJokerId) : undefined}
                   onPointerOut={isClickableJoker ? () => setHoveredMeldJokerId(null) : undefined}
                 />

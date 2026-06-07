@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
-import { DoubleSide, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type Mesh } from 'three'
+import { DoubleSide, MathUtils, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type Group, type Mesh } from 'three'
 import { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { deckPosition, tableCardBaseY } from './constants'
 import { getCardBackTexture } from './cardTextures'
@@ -9,6 +9,9 @@ const cardBackGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
 const deckHitGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
 const deckHitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
 const skipRaycast = () => null
+const DECK_FIDGET_DURATION_SECONDS = 0.28
+const DECK_FIDGET_FALL_HEIGHT = 0.1
+const DECK_FIDGET_SIDE_OFFSET = 0.045
 
 type DeckPileProps = {
   deckCount: number
@@ -18,6 +21,9 @@ type DeckPileProps = {
 
 export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
   const visibleCards = Math.min(deckCount, 14)
+  const deckGroupRef = useRef<Group>(null)
+  const fidgetElapsedRef = useRef(DECK_FIDGET_DURATION_SECONDS)
+  const fidgetDirectionRef = useRef(1)
   const cardBackMaterial = useMemo(
     () => new MeshStandardMaterial({
       map: getCardBackTexture(),
@@ -30,6 +36,30 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
     [],
   )
 
+  useFrame((_, delta) => {
+    if (!deckGroupRef.current) {
+      return
+    }
+
+    const progress = Math.min(fidgetElapsedRef.current / DECK_FIDGET_DURATION_SECONDS, 1)
+    const landingProgress = MathUtils.smoothstep(progress, 0, 1)
+    const settleProgress = MathUtils.smoothstep(progress, 0.72, 1)
+    const lateralFade = 1 - settleProgress
+
+    deckGroupRef.current.position.x = fidgetDirectionRef.current * DECK_FIDGET_SIDE_OFFSET * lateralFade
+    deckGroupRef.current.position.y = DECK_FIDGET_FALL_HEIGHT * (1 - landingProgress)
+    deckGroupRef.current.position.z = 0
+    fidgetElapsedRef.current = Math.min(fidgetElapsedRef.current + delta, DECK_FIDGET_DURATION_SECONDS)
+  })
+
+  function handleDeckClick() {
+    fidgetElapsedRef.current = 0
+    fidgetDirectionRef.current = Math.random() < 0.5 ? -1 : 1
+    if (canDraw) {
+      onDrawCard()
+    }
+  }
+
   if (deckCount === 0) {
     return (
       <mesh position={[deckPosition.x, tableCardBaseY - 0.015, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -40,7 +70,7 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
   }
 
   return (
-    <group>
+    <group ref={deckGroupRef}>
       {Array.from({ length: visibleCards }).map((_, index) => (
         <mesh
           geometry={cardBackGeometry}
@@ -51,15 +81,13 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
           raycast={skipRaycast}
         />
       ))}
-      {canDraw ? (
-        <mesh
-          geometry={deckHitGeometry}
-          material={deckHitMaterial}
-          position={[deckPosition.x, tableCardBaseY + visibleCards * 0.024 + 0.04, deckPosition.z]}
-          rotation={[-Math.PI / 2, 0, 0.04]}
-          onClick={onDrawCard}
-        />
-      ) : null}
+      <mesh
+        geometry={deckHitGeometry}
+        material={deckHitMaterial}
+        position={[deckPosition.x, tableCardBaseY + visibleCards * 0.024 + 0.04, deckPosition.z]}
+        rotation={[-Math.PI / 2, 0, 0.04]}
+        onClick={handleDeckClick}
+      />
     </group>
   )
 }
