@@ -13,7 +13,7 @@ const LOCAL_HAND_CLOSEUP_Z_OFFSET = 0.58
 const DRAG_CLICK_DISTANCE = 6
 const DRAG_REORDER_DISTANCE = 10
 const DRAGGED_CARD_Y = tableCardBaseY + 0.34
-const RETURN_TO_HAND_DURATION = 360
+const OPTIMISTIC_DRAW_CARD_ID_PREFIX = 'optimistic-draw-'
 
 type HandDragState = {
   cardId: string
@@ -60,14 +60,12 @@ export default function LocalHand({
   const { camera, gl } = useThree()
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
-  const [returningCardId, setReturningCardId] = useState<string | null>(null)
   const [isDraggingOverHandArea, setIsDraggingOverHandArea] = useState(true)
   const [dragOffset, setDragOffset] = useState<[number, number, number]>([0, 0, 0])
   const [enteringCardIds, setEnteringCardIds] = useState<Set<string>>(() => new Set())
   const [isHandAreaHovered, setIsHandAreaHovered] = useState(false)
   const handAreaLeaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const enteringCardsTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
-  const returningCardTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const seenCardIdsRef = useRef<Set<string> | null>(null)
   const dragStateRef = useRef<HandDragState | null>(null)
   const dragOffsetRef = useRef<[number, number, number]>([0, 0, 0])
@@ -122,37 +120,10 @@ export default function LocalHand({
       if (enteringCardsTimeoutRef.current) {
         window.clearTimeout(enteringCardsTimeoutRef.current)
       }
-      if (returningCardTimeoutRef.current) {
-        window.clearTimeout(returningCardTimeoutRef.current)
-      }
     }
   }, [])
 
   useEffect(() => {
-    function finishDrag() {
-      const dragState = dragStateRef.current
-
-      if (dragState?.moved) {
-        suppressNextClickRef.current = true
-        onHandCardDragEnd(dragState.cardId)
-        setReturningCardId(dragState.cardId)
-
-        if (returningCardTimeoutRef.current) {
-          window.clearTimeout(returningCardTimeoutRef.current)
-        }
-
-        returningCardTimeoutRef.current = window.setTimeout(() => {
-          setReturningCardId(null)
-        }, RETURN_TO_HAND_DURATION)
-      }
-
-      dragStateRef.current = null
-      setDraggingCardId(null)
-      updateIsDraggingOverHandArea(true)
-      updateDragOffset([0, 0, 0])
-      onHandCardDragChange(null)
-    }
-
     function handleWindowPointerMove(event: PointerEvent) {
       updateDragStateFromCoordinates(event.clientX, event.clientY)
     }
@@ -168,7 +139,7 @@ export default function LocalHand({
       window.removeEventListener('pointermove', handleWindowPointerMove)
       window.removeEventListener('pointerup', handleWindowPointerUp)
     }
-  }, [onHandCardDragChange, onHandCardDragEnd])
+  }, [finishDrag])
 
   useEffect(() => {
     const previousCursor = document.body.style.cursor
@@ -239,6 +210,21 @@ export default function LocalHand({
   function updateIsDraggingOverHandArea(nextIsDraggingOverHandArea: boolean) {
     isDraggingOverHandAreaRef.current = nextIsDraggingOverHandArea
     setIsDraggingOverHandArea(nextIsDraggingOverHandArea)
+  }
+
+  function finishDrag() {
+    const dragState = dragStateRef.current
+
+    if (dragState?.moved) {
+      suppressNextClickRef.current = true
+      onHandCardDragEnd(dragState.cardId)
+    }
+
+    dragStateRef.current = null
+    setDraggingCardId(null)
+    updateIsDraggingOverHandArea(true)
+    updateDragOffset([0, 0, 0])
+    onHandCardDragChange(null)
   }
 
   function handleCardPointerDown(event: ThreeEvent<PointerEvent>, card: CardType, startPosition: [number, number, number]) {
@@ -395,27 +381,7 @@ export default function LocalHand({
 
   function handleCardPointerUp(event: ThreeEvent<PointerEvent>) {
     event.stopPropagation()
-    const dragState = dragStateRef.current
-
-    if (dragState?.moved) {
-      suppressNextClickRef.current = true
-      onHandCardDragEnd(dragState.cardId)
-      setReturningCardId(dragState.cardId)
-
-      if (returningCardTimeoutRef.current) {
-        window.clearTimeout(returningCardTimeoutRef.current)
-      }
-
-      returningCardTimeoutRef.current = window.setTimeout(() => {
-        setReturningCardId(null)
-      }, RETURN_TO_HAND_DURATION)
-    }
-
-    dragStateRef.current = null
-    setDraggingCardId(null)
-    updateIsDraggingOverHandArea(true)
-    updateDragOffset([0, 0, 0])
-    onHandCardDragChange(null)
+    finishDrag()
   }
 
   return (
@@ -430,7 +396,7 @@ export default function LocalHand({
         const interactionOffsetX = isLastCard ? 0 : -visibleOverlap / 2
         const isPuttingDown = puttingDownCardIds.has(card.id)
         const isDragging = draggingCardId === card.id
-        const isReturning = returningCardId === card.id
+        const isOptimisticDrawCard = card.id.startsWith(OPTIMISTIC_DRAW_CARD_ID_PREFIX)
         const closeUpZOffset = isCloseUp ? LOCAL_HAND_CLOSEUP_Z_OFFSET : 0
         const targetRotation: [number, number, number] = [isHandPresentationActive ? -0.42 : -1.08, 0, 0]
         const isDraggingFlatOnTable = isDragging && !isDraggingOverHandArea
@@ -453,17 +419,17 @@ export default function LocalHand({
         const animateFrom: [number, number, number] | undefined = enteringCardIds.has(card.id)
           ? [deckPosition.x, tableCardBaseY + 0.34, deckPosition.z]
           : undefined
-        const resolvedScale = isPuttingDown ? 0.62 : isReturning ? 1.08 : 1
 
         return (
           <group key={card.id}>
             <CardMesh
               card={card}
+              hidden={isOptimisticDrawCard}
               position={resolvedPosition}
               rotation={resolvedRotation}
-              animateFrom={isDragging || isReturning ? undefined : animateFrom}
-              animateRotationFrom={!isDragging && !isReturning && animateFrom ? [-Math.PI / 2, 0, 0.04] : undefined}
-              renderOrder={isDragging || isReturning ? 140 + index : index}
+              animateFrom={isDragging ? undefined : animateFrom}
+              animateRotationFrom={!isDragging && animateFrom ? [-Math.PI / 2, 0, 0.04] : undefined}
+              renderOrder={isDragging ? 140 + index : index}
               layerOnTop
               snapToPosition={isDragging}
               disableLift={isDraggingFlatOnTable}
@@ -471,9 +437,9 @@ export default function LocalHand({
               outlineColor={selectedCardOutlineColor}
               hovered={hoveredCardIndex === index || isDragging}
               opacity={isPuttingDown ? 0 : 1}
-              scale={resolvedScale}
+              scale={isPuttingDown ? 0.62 : 1}
             />
-            {!isPuttingDown ? (
+            {!isPuttingDown && !isOptimisticDrawCard ? (
               <mesh
                 position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
                 rotation={targetRotation}
