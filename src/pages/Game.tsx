@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
-import { getMeldType, validateMeld } from '../game/melds'
+import { getMeldType, isMeldInCardOrder, validateMeld } from '../game/melds'
 import {
   createDiscardCardAction,
   createDrawCardAction,
@@ -125,8 +125,9 @@ function canReplaceMeldJoker(
   }
 
   const replacementMeldCards = meld.cards.map((card) => (card.id === jokerCardId ? replacementCard : card))
+  const replacementMeldType = getMeldType(replacementMeldCards)
 
-  return getMeldType(replacementMeldCards) === meld.type
+  return replacementMeldType === meld.type && isMeldInCardOrder(replacementMeldCards, replacementMeldType)
 }
 
 export default function Game() {

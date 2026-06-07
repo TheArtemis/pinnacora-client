@@ -84,7 +84,7 @@ export function getCardBackTexture() {
 }
 
 export function getCardFaceTexture(card: CardType, borderColor?: string) {
-  return createTexture(`face-${card.id}-${borderColor ?? 'default-border'}`, (context, width, height) => {
+  return createTexture(`face-${card.rank}-${card.suit}-${borderColor ?? 'default-border'}`, (context, width, height) => {
     const isRed = card.suit === 'diamonds' || card.suit === 'hearts'
     const color = isRed ? '#b3263a' : '#172033'
     const cornerSuitFont = card.suit === 'joker' ? '800 34px Inter, Arial, sans-serif' : '800 58px Georgia, serif'

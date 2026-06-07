@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { DoubleSide, Plane, Raycaster, Vector2, Vector3 } from 'three'
+import { DoubleSide, MeshBasicMaterial, Plane, PlaneGeometry, Raycaster, Vector2, Vector3 } from 'three'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
@@ -13,6 +13,8 @@ const LOCAL_HAND_CLOSEUP_Z_OFFSET = 0.58
 const DRAG_CLICK_DISTANCE = 6
 const DRAG_REORDER_DISTANCE = 10
 const DRAGGED_CARD_Y = tableCardBaseY + 0.34
+const handInteractionGeometry = new PlaneGeometry(1, CARD_HEIGHT)
+const handInteractionMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, side: DoubleSide, depthWrite: false })
 
 type HandDragState = {
   cardId: string
@@ -61,9 +63,7 @@ export default function LocalHand({
   const { camera, gl } = useThree()
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
-  const [activeDragState, setActiveDragState] = useState<HandDragState | null>(null)
   const [isDraggingOverHandArea, setIsDraggingOverHandArea] = useState(true)
-  const [dragOffset, setDragOffset] = useState<[number, number, number]>([0, 0, 0])
   const [enteringCardIds, setEnteringCardIds] = useState<Set<string>>(() => new Set())
   const [isHandAreaHovered, setIsHandAreaHovered] = useState(false)
   const handAreaLeaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
@@ -71,7 +71,7 @@ export default function LocalHand({
   const seenCardIdsRef = useRef<Set<string> | null>(null)
   const seenHiddenCardIdsRef = useRef<Set<string>>(new Set())
   const dragStateRef = useRef<HandDragState | null>(null)
-  const dragOffsetRef = useRef<[number, number, number]>([0, 0, 0])
+  const dragVisualPositionRef = useRef<[number, number, number]>([0, 0, 0])
   const isDraggingOverHandAreaRef = useRef(true)
   const dragRaycasterRef = useRef(new Raycaster())
   const dragPointerRef = useRef(new Vector2())
@@ -215,9 +215,7 @@ export default function LocalHand({
     onHandCardClick(card)
   }
 
-  function pointerWorldOnPlane(clientX: number, clientY: number, dragPlane: Plane) {
-    const bounds = gl.domElement.getBoundingClientRect()
-
+  function pointerWorldOnPlane(clientX: number, clientY: number, dragPlane: Plane, bounds: DOMRect) {
     dragPointerRef.current.set(
       ((clientX - bounds.left) / Math.max(bounds.width, 1)) * 2 - 1,
       -(((clientY - bounds.top) / Math.max(bounds.height, 1)) * 2 - 1),
@@ -227,18 +225,19 @@ export default function LocalHand({
     return dragRaycasterRef.current.ray.intersectPlane(dragPlane, dragIntersectionRef.current)
   }
 
-  function isPointerInHandArea(clientY: number) {
-    const bounds = gl.domElement.getBoundingClientRect()
-
+  function isPointerInHandArea(clientY: number, bounds: DOMRect) {
     return clientY - bounds.top > bounds.height * 0.5
   }
 
-  function updateDragOffset(nextDragOffset: [number, number, number]) {
-    dragOffsetRef.current = nextDragOffset
-    setDragOffset(nextDragOffset)
+  function updateDragVisualPosition(nextPosition: [number, number, number]) {
+    dragVisualPositionRef.current = nextPosition
   }
 
   function updateIsDraggingOverHandArea(nextIsDraggingOverHandArea: boolean) {
+    if (isDraggingOverHandAreaRef.current === nextIsDraggingOverHandArea) {
+      return
+    }
+
     isDraggingOverHandAreaRef.current = nextIsDraggingOverHandArea
     setIsDraggingOverHandArea(nextIsDraggingOverHandArea)
   }
@@ -252,16 +251,15 @@ export default function LocalHand({
     }
 
     dragStateRef.current = null
-    setActiveDragState(null)
     setDraggingCardId(null)
     updateIsDraggingOverHandArea(true)
-    updateDragOffset([0, 0, 0])
     onHandCardDragChange(null)
   }
 
   function handleCardPointerDown(event: ThreeEvent<PointerEvent>, card: CardType, startPosition: [number, number, number]) {
     event.stopPropagation()
     handleHandAreaOver()
+    const bounds = gl.domElement.getBoundingClientRect()
     const handStartPosition = new Vector3(...startPosition)
     const tableStartPosition = new Vector3(startPosition[0], DRAGGED_CARD_Y, startPosition[2])
     const handDragPlane = new Plane().setFromNormalAndCoplanarPoint(
@@ -273,11 +271,13 @@ export default function LocalHand({
       event.nativeEvent.clientX,
       event.nativeEvent.clientY,
       handDragPlane,
+      bounds,
     )?.clone() ?? handStartPosition.clone()
     const tableStartPointerWorld = pointerWorldOnPlane(
       event.nativeEvent.clientX,
       event.nativeEvent.clientY,
       tableDragPlane,
+      bounds,
     )?.clone() ?? tableStartPosition.clone()
 
     const nextDragState = {
@@ -293,7 +293,7 @@ export default function LocalHand({
       moved: false,
     }
     dragStateRef.current = nextDragState
-    setActiveDragState(nextDragState)
+    updateDragVisualPosition(startPosition)
     updateIsDraggingOverHandArea(true)
   }
 
@@ -314,19 +314,13 @@ export default function LocalHand({
     }
 
     if (dragState.moved) {
-      const nextIsDraggingOverHandArea = isPointerInHandArea(clientY)
+      const bounds = gl.domElement.getBoundingClientRect()
+      const nextIsDraggingOverHandArea = isPointerInHandArea(clientY, bounds)
       const previousIsDraggingOverHandArea = isDraggingOverHandAreaRef.current
 
       if (nextIsDraggingOverHandArea !== previousIsDraggingOverHandArea) {
-        const previousStartPosition = previousIsDraggingOverHandArea
-          ? dragState.handStartPosition
-          : dragState.tableStartPosition
-        const [offsetX, offsetY, offsetZ] = dragOffsetRef.current
-        const currentPosition = new Vector3(
-          previousStartPosition.x + offsetX,
-          previousStartPosition.y + offsetY,
-          previousStartPosition.z + offsetZ,
-        )
+        const [currentX, currentY, currentZ] = dragVisualPositionRef.current
+        const currentPosition = new Vector3(currentX, currentY, currentZ)
 
         if (nextIsDraggingOverHandArea) {
           const handDragPlane = new Plane().setFromNormalAndCoplanarPoint(
@@ -340,6 +334,7 @@ export default function LocalHand({
             clientX,
             clientY,
             dragState.handDragPlane,
+            bounds,
           )?.clone() ?? currentPosition.clone()
         } else {
           dragState.tableStartPosition = new Vector3(currentPosition.x, DRAGGED_CARD_Y, currentPosition.z)
@@ -351,11 +346,13 @@ export default function LocalHand({
             clientX,
             clientY,
             dragState.tableDragPlane,
+            bounds,
           )?.clone() ?? dragState.tableStartPosition.clone()
         }
 
         updateIsDraggingOverHandArea(nextIsDraggingOverHandArea)
-        updateDragOffset([0, 0, 0])
+        const nextStartPosition = nextIsDraggingOverHandArea ? dragState.handStartPosition : dragState.tableStartPosition
+        updateDragVisualPosition([nextStartPosition.x, nextStartPosition.y, nextStartPosition.z])
         return dragState
       }
 
@@ -363,15 +360,16 @@ export default function LocalHand({
       const startPointerWorld = nextIsDraggingOverHandArea
         ? dragState.handStartPointerWorld
         : dragState.tableStartPointerWorld
-      const pointerWorld = pointerWorldOnPlane(clientX, clientY, dragPlane)
+      const startPosition = nextIsDraggingOverHandArea ? dragState.handStartPosition : dragState.tableStartPosition
+      const pointerWorld = pointerWorldOnPlane(clientX, clientY, dragPlane, bounds)
 
       updateIsDraggingOverHandArea(nextIsDraggingOverHandArea)
 
       if (pointerWorld) {
-        updateDragOffset([
-          pointerWorld.x - startPointerWorld.x,
-          pointerWorld.y - startPointerWorld.y,
-          pointerWorld.z - startPointerWorld.z,
+        updateDragVisualPosition([
+          startPosition.x + pointerWorld.x - startPointerWorld.x,
+          startPosition.y + pointerWorld.y - startPointerWorld.y,
+          startPosition.z + pointerWorld.z - startPointerWorld.z,
         ])
       }
     }
@@ -438,17 +436,7 @@ export default function LocalHand({
         const targetPosition: [number, number, number] = isGatheringForSort
           ? [0, 2.22 + index * 0.012, localHandBaseZ + closeUpZOffset - index * 0.008]
           : [x, 2.05, localHandBaseZ + closeUpZOffset]
-        const resolvedPosition: [number, number, number] = isDragging && activeDragState?.cardId === card.id
-          ? (() => {
-            const startPosition = isDraggingOverHandArea ? activeDragState.handStartPosition : activeDragState.tableStartPosition
-
-            return [
-              startPosition.x + dragOffset[0],
-              startPosition.y + dragOffset[1],
-              startPosition.z + dragOffset[2],
-            ]
-          })()
-          : targetPosition
+        const resolvedPosition: [number, number, number] = isDragging ? dragVisualPositionRef.current : targetPosition
         const animateFrom: [number, number, number] | undefined = enteringCardIds.has(card.id)
           ? [deckPosition.x, tableCardBaseY + 0.34, deckPosition.z]
           : undefined
@@ -459,6 +447,7 @@ export default function LocalHand({
               card={card}
               hidden={isHidden}
               position={resolvedPosition}
+              positionRef={isDragging ? dragVisualPositionRef : undefined}
               rotation={resolvedRotation}
               animateFrom={isDragging ? undefined : animateFrom}
               animateRotationFrom={!isDragging && animateFrom ? [-Math.PI / 2, 0, 0.04] : undefined}
@@ -474,18 +463,18 @@ export default function LocalHand({
             />
             {!isPuttingDown && !isHidden ? (
               <mesh
+                geometry={handInteractionGeometry}
+                material={handInteractionMaterial}
                 position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
                 rotation={targetRotation}
+                scale={[interactionWidth, 1, 1]}
                 onClick={(event) => handleCardClick(event, card)}
                 onPointerDown={(event) => handleCardPointerDown(event, card, targetPosition)}
                 onPointerMove={handleCardPointerMove}
                 onPointerUp={handleCardPointerUp}
                 onPointerOver={(event) => handleCardOver(event, index)}
                 onPointerOut={(event) => handleCardOut(event, index)}
-              >
-                <planeGeometry args={[interactionWidth, CARD_HEIGHT]} />
-                <meshBasicMaterial transparent opacity={0} side={DoubleSide} depthWrite={false} />
-              </mesh>
+              />
             ) : null}
           </group>
         )

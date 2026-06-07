@@ -1,41 +1,66 @@
 import { Canvas } from '@react-three/fiber'
-import { useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { localPlayerId } from './layout'
 import SceneContent from './SceneContent'
 import type { GameTableSceneProps } from './types'
+
+const cameraSettings = { position: [0, 19, 8] as [number, number, number], fov: 49 }
+const glSettings = { antialias: true, powerPreference: 'high-performance' as const }
 
 export default function GameTableScene(props: GameTableSceneProps) {
   const viewerPlayerId = localPlayerId(props.state)
   const opponent = props.state?.players.find((player) => player.id !== viewerPlayerId)
   const [isLowerCanvasFocused, setIsLowerCanvasFocused] = useState(false)
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
+  const isLowerCanvasFocusedRef = useRef(false)
+  const isHandAreaFocusedRef = useRef(false)
   const isLocalHandFocused = isLowerCanvasFocused || isHandAreaFocused
   const isMiddleTableFocused = false
   const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
 
-  function handleScenePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+  const updateLowerCanvasFocus = useCallback((isFocused: boolean) => {
+    if (isLowerCanvasFocusedRef.current === isFocused) {
+      return
+    }
+
+    isLowerCanvasFocusedRef.current = isFocused
+    setIsLowerCanvasFocused(isFocused)
+  }, [])
+
+  const handleLocalHandFocusChange = useCallback((isFocused: boolean) => {
+    if (isHandAreaFocusedRef.current === isFocused) {
+      return
+    }
+
+    isHandAreaFocusedRef.current = isFocused
+    setIsHandAreaFocused(isFocused)
+  }, [])
+
+  const handleScenePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     const pointerY = event.clientY - bounds.top
     const isInLowerCanvas = pointerY > bounds.height * 0.62
 
-    setIsLowerCanvasFocused(isInLowerCanvas)
-  }
+    updateLowerCanvasFocus(isInLowerCanvas)
+  }, [updateLowerCanvasFocus])
+
+  const handleScenePointerLeave = useCallback(() => {
+    updateLowerCanvasFocus(false)
+    handleLocalHandFocusChange(false)
+  }, [handleLocalHandFocusChange, updateLowerCanvasFocus])
 
   return (
     <div
       className="game-scene"
       onPointerMove={handleScenePointerMove}
-      onPointerLeave={() => {
-        setIsLowerCanvasFocused(false)
-        setIsHandAreaFocused(false)
-      }}
+      onPointerLeave={handleScenePointerLeave}
     >
-      <Canvas camera={{ position: [0, 19, 8], fov: 49 }}>
+      <Canvas camera={cameraSettings} dpr={[1, 1.5]} gl={glSettings}>
         <SceneContent
           {...props}
           isLocalHandFocused={isLocalHandFocused}
           isMiddleTableFocused={isMiddleTableFocused}
-          onLocalHandFocusChange={setIsHandAreaFocused}
+          onLocalHandFocusChange={handleLocalHandFocusChange}
         />
       </Canvas>
       <div className="game-scene__table-hint" aria-live="polite">

@@ -1,5 +1,5 @@
 import type { Card } from './cardTypes'
-import { getMeldType, sortMeldCards } from './melds'
+import { getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
 import { calculateMeldPoints } from './scoring'
 import type { ServerGameState } from './serverTypes'
 
@@ -276,7 +276,7 @@ function projectSwapMeldJoker(
   const nextMeldCards = meld.cards.map((card) => (card.id === jokerCardId ? replacementCard : card))
   const nextMeldType = getMeldType(nextMeldCards)
 
-  if (nextMeldType !== meld.type) {
+  if (nextMeldType !== meld.type || !isMeldInCardOrder(nextMeldCards, nextMeldType)) {
     return null
   }
 

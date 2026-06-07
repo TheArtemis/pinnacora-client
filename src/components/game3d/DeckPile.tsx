@@ -1,8 +1,14 @@
 import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-import type { Mesh } from 'three'
-import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
+import { useMemo, useRef } from 'react'
+import { DoubleSide, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type Mesh } from 'three'
+import { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { deckPosition, tableCardBaseY } from './constants'
+import { getCardBackTexture } from './cardTextures'
+
+const cardBackGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
+const deckHitGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
+const deckHitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+const skipRaycast = () => null
 
 type DeckPileProps = {
   deckCount: number
@@ -12,6 +18,17 @@ type DeckPileProps = {
 
 export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
   const visibleCards = Math.min(deckCount, 14)
+  const cardBackMaterial = useMemo(
+    () => new MeshStandardMaterial({
+      map: getCardBackTexture(),
+      side: DoubleSide,
+      roughness: 0.62,
+      metalness: 0.02,
+      transparent: true,
+      alphaTest: 0.04,
+    }),
+    [],
+  )
 
   if (deckCount === 0) {
     return (
@@ -25,14 +42,24 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
   return (
     <group>
       {Array.from({ length: visibleCards }).map((_, index) => (
-        <CardMesh
-          hidden
+        <mesh
+          geometry={cardBackGeometry}
           key={`deck-${index}`}
+          material={cardBackMaterial}
           position={[deckPosition.x, tableCardBaseY + index * 0.024, deckPosition.z - index * 0.012]}
           rotation={[-Math.PI / 2, 0, 0.04]}
-          onClick={canDraw ? onDrawCard : undefined}
+          raycast={skipRaycast}
         />
       ))}
+      {canDraw ? (
+        <mesh
+          geometry={deckHitGeometry}
+          material={deckHitMaterial}
+          position={[deckPosition.x, tableCardBaseY + visibleCards * 0.024 + 0.04, deckPosition.z]}
+          rotation={[-Math.PI / 2, 0, 0.04]}
+          onClick={onDrawCard}
+        />
+      ) : null}
     </group>
   )
 }

@@ -17,8 +17,15 @@ type PointsBurstProps = {
 }
 
 const durationSeconds = 1.35
+const pointsTextureCache = new Map<string, CanvasTexture>()
 
 function createPointsTexture(label: string) {
+  const cachedTexture = pointsTextureCache.get(label)
+
+  if (cachedTexture) {
+    return cachedTexture
+  }
+
   const canvas = document.createElement('canvas')
   canvas.width = 512
   canvas.height = 256
@@ -45,6 +52,7 @@ function createPointsTexture(label: string) {
   texture.colorSpace = SRGBColorSpace
   texture.minFilter = LinearFilter
   texture.magFilter = LinearFilter
+  pointsTextureCache.set(label, texture)
 
   return texture
 }
@@ -60,8 +68,6 @@ export default function PointsBurst({ points, position, onComplete }: PointsBurs
   useEffect(() => {
     elapsedSecondsRef.current = 0
     hasCompletedRef.current = false
-
-    return () => texture.dispose()
   }, [texture])
 
   useFrame(({ camera }, delta) => {
