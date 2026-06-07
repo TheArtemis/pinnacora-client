@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getMeldPoints } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
 import { emptyMelds, localHandBaseZ, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
+import PointsBurst from './PointsBurst'
 
 type MeldCardsProps = {
   state: ServerGameState | null
@@ -13,16 +15,23 @@ export default function MeldCards({ state }: MeldCardsProps) {
   const viewerPlayerId = localPlayerId(state)
   const currentMeldCardIds = useMemo(() => melds.flatMap((meld) => meld.cards.map((card) => `${meld.id}-${card.id}`)), [melds])
   const currentMeldCardKey = currentMeldCardIds.join('|')
+  const currentMeldIds = useMemo(() => melds.map((meld) => meld.id), [melds])
+  const currentMeldKey = currentMeldIds.join('|')
   const hasSeenInitialMeldsRef = useRef(false)
+  const seenMeldIdsRef = useRef(new Set<string>())
   const seenMeldCardIdsRef = useRef(new Set<string>())
   const [materializingMeldCardIds, setMaterializingMeldCardIds] = useState<Set<string>>(() => new Set())
+  const [activePointBurstMeldIds, setActivePointBurstMeldIds] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     const nextMeldCardIds = currentMeldCardKey ? currentMeldCardKey.split('|') : []
+    const nextMeldIds = currentMeldKey ? currentMeldKey.split('|') : []
     const nextSeenMeldCardIds = new Set(nextMeldCardIds)
+    const nextSeenMeldIds = new Set(nextMeldIds)
 
     if (!hasSeenInitialMeldsRef.current) {
       seenMeldCardIdsRef.current = nextSeenMeldCardIds
+      seenMeldIdsRef.current = nextSeenMeldIds
       hasSeenInitialMeldsRef.current = true
       return
     }
@@ -30,9 +39,15 @@ export default function MeldCards({ state }: MeldCardsProps) {
     const nextMaterializingMeldCardIds = new Set(
       nextMeldCardIds.filter((meldCardId) => !seenMeldCardIdsRef.current.has(meldCardId)),
     )
+    const nextPointBurstMeldIds = nextMeldIds.filter((meldId) => !seenMeldIdsRef.current.has(meldId))
 
     seenMeldCardIdsRef.current = nextSeenMeldCardIds
+    seenMeldIdsRef.current = nextSeenMeldIds
     setMaterializingMeldCardIds(nextMaterializingMeldCardIds)
+
+    if (nextPointBurstMeldIds.length > 0) {
+      setActivePointBurstMeldIds((currentMeldIds) => new Set([...currentMeldIds, ...nextPointBurstMeldIds]))
+    }
 
     if (nextMaterializingMeldCardIds.size === 0) {
       return
@@ -43,7 +58,7 @@ export default function MeldCards({ state }: MeldCardsProps) {
     }, 900)
 
     return () => window.clearTimeout(timeoutId)
-  }, [currentMeldCardKey])
+  }, [currentMeldCardKey, currentMeldKey])
 
   const ownerMeldIndexes = new Map<string, number>()
   const ownerMeldCounts = new Map<string, number>()
@@ -68,14 +83,16 @@ export default function MeldCards({ state }: MeldCardsProps) {
         const startZ = isLocalMeld ? 5.58 - row * 3.12 : -5.58 + row * 3.12
         const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -6.15]
         const visibleCards = meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
+        const cardSpacing = meld.type === 'sequence' ? CARD_HEIGHT * 0.5 : CARD_HEIGHT * 0.42
+        const zDirection = isLocalMeld ? -1 : 1
+        const burstZ = startZ + ((visibleCards.length - 1) * cardSpacing * zDirection) / 2
+        const showPointBurst = activePointBurstMeldIds.has(meld.id)
 
         return (
           <group key={meld.id}>
             {visibleCards.map(({ card, originalIndex }, visibleCardIndex) => {
               const meldCardId = `${meld.id}-${card.id}`
               const shouldMaterialize = materializingMeldCardIds.has(meldCardId)
-              const cardSpacing = meld.type === 'sequence' ? CARD_HEIGHT * 0.5 : CARD_HEIGHT * 0.42
-              const zDirection = isLocalMeld ? -1 : 1
 
               return (
                 <CardMesh
@@ -91,6 +108,19 @@ export default function MeldCards({ state }: MeldCardsProps) {
                 />
               )
             })}
+            {showPointBurst ? (
+              <PointsBurst
+                points={getMeldPoints(meld)}
+                position={[startX, tableCardBaseY + 1.15, burstZ]}
+                onComplete={() => {
+                  setActivePointBurstMeldIds((currentMeldIds) => {
+                    const nextMeldIds = new Set(currentMeldIds)
+                    nextMeldIds.delete(meld.id)
+                    return nextMeldIds
+                  })
+                }}
+              />
+            ) : null}
           </group>
         )
       })}

@@ -87,6 +87,7 @@ export function getCardFaceTexture(card: CardType) {
   return createTexture(`face-${card.id}`, (context, width, height) => {
     const isRed = card.suit === 'diamonds' || card.suit === 'hearts'
     const color = isRed ? '#b3263a' : '#172033'
+    const cornerSuitFont = card.suit === 'joker' ? '800 34px Inter, Arial, sans-serif' : '800 58px Georgia, serif'
 
     context.fillStyle = '#fffaf5'
     roundedRect(context, 8, 8, width - 16, height - 16, 44)
@@ -102,6 +103,9 @@ export function getCardFaceTexture(card: CardType) {
     context.textBaseline = 'top'
     context.font = '800 86px Inter, Arial, sans-serif'
     context.fillText(card.rank, 48, 46)
+    context.font = cornerSuitFont
+    context.textAlign = 'center'
+    context.fillText(suitSymbols[card.suit], 88, 128)
 
     context.font = card.suit === 'joker' ? '800 76px Inter, Arial, sans-serif' : '800 140px Georgia, serif'
     context.textAlign = 'center'
@@ -115,6 +119,9 @@ export function getCardFaceTexture(card: CardType) {
     context.textBaseline = 'top'
     context.font = '800 86px Inter, Arial, sans-serif'
     context.fillText(card.rank, 48, 46)
+    context.font = cornerSuitFont
+    context.textAlign = 'center'
+    context.fillText(suitSymbols[card.suit], 88, 128)
     context.restore()
   })
 }

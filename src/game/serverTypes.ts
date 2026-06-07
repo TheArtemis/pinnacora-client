@@ -16,6 +16,7 @@ export type ServerGameMeld = {
   playerId: string
   type: 'set' | 'sequence'
   cards: Card[]
+  points?: number
 }
 
 export type ServerGameState = {

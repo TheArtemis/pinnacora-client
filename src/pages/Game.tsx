@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
-import type { ServerGameState } from '../game/serverTypes'
+import { calculateMeldPoints, getMeldPoints } from '../game/scoring'
+import type { ServerGameMeld, ServerGameState } from '../game/serverTypes'
 import { connectSocket, socket } from '../socket'
 import { useAuth } from '../auth/useAuth'
 
@@ -113,6 +114,34 @@ function validateMeld(cards: CardType[]) {
   }
 
   return 'Choose consecutive values for a sequence, like A-2-3, 4-5-6, or J-Q-K-A.'
+}
+
+function getMeldType(cards: CardType[]): ServerGameMeld['type'] | undefined {
+  if (cards.length < 3) {
+    return undefined
+  }
+
+  const naturalCards = cards.filter((card) => !isJoker(card))
+
+  if (naturalCards.length === 0) {
+    return undefined
+  }
+
+  const uniqueRanks = new Set(naturalCards.map((card) => card.rank))
+  const uniqueSuits = new Set(naturalCards.map((card) => card.suit))
+
+  if (uniqueRanks.size === 1) {
+    return cards.length <= 4 && uniqueSuits.size === naturalCards.length ? 'set' : undefined
+  }
+
+  if (uniqueSuits.size !== 1 || uniqueRanks.size !== naturalCards.length) {
+    return undefined
+  }
+
+  return canFitSequence(sequenceValues(naturalCards, false), cards.length) ||
+    canFitSequence(sequenceValues(naturalCards, true), cards.length)
+    ? 'sequence'
+    : undefined
 }
 
 function statusText(state: ServerGameState | null) {
@@ -234,13 +263,29 @@ export default function Game() {
     canPickUpDiscardPile && discardPileCombinationCard
       ? validateMeld([discardPileCombinationCard, ...selectedMeldCards])
       : ''
+  const selectedMeldType = selectedMeldError ? undefined : getMeldType(selectedMeldCards)
+  const selectedMeldPoints = selectedMeldType ? calculateMeldPoints(selectedMeldCards, selectedMeldType) : 0
   const isSelectedCombinationValid =
     selectedMeldCards.length > 0 && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
   const selectedCardOutlineColor =
-    selectedMeldCards.length > 0 ? (isSelectedCombinationValid ? '#31d46b' : '#ef4444') : undefined
+    selectedMeldCards.length > 0 ? (isSelectedCombinationValid ? '#3f7a54' : '#8f3d36') : undefined
   const discardPilePickupCombination = discardPileCombinationCard
     ? [discardPileCombinationCard, ...selectedMeldCards]
     : selectedMeldCards
+  const discardPilePickupType = discardPilePickupError ? undefined : getMeldType(discardPilePickupCombination)
+  const discardPilePickupPoints = discardPilePickupType
+    ? calculateMeldPoints(discardPilePickupCombination, discardPilePickupType)
+    : 0
+  const playerMeldPoints = useMemo(() => {
+    const pointsByPlayer = new Map<string, number>()
+
+    for (const meld of serverState?.melds ?? []) {
+      pointsByPlayer.set(meld.playerId, (pointsByPlayer.get(meld.playerId) ?? 0) + getMeldPoints(meld))
+    }
+
+    return pointsByPlayer
+  }, [serverState?.melds])
+
   const tableHint = useMemo(() => {
     if (!serverState) {
       return 'Connecting to the table...'
@@ -250,7 +295,7 @@ export default function Game() {
       if (discardPileCombinationCard) {
         return discardPilePickupError
           ? `No pickup combination yet: ${discardPilePickupError}`
-          : `Valid pickup: ${discardPilePickupCombination.length} cards go down and ${discardPileCardsAddedToHand.length} newer cards join your hand.`
+          : `Valid pickup: ${discardPilePickupCombination.length} cards worth ${discardPilePickupPoints} points go down and ${discardPileCardsAddedToHand.length} newer cards join your hand.`
       }
 
       return 'Click the deck pile to draw, or select hand cards and choose a discard card to pick up.'
@@ -261,6 +306,12 @@ export default function Game() {
     }
 
     if (canDiscard) {
+      if (selectedMeldCards.length > 0) {
+        return selectedMeldError
+          ? `Combination not ready: ${selectedMeldError}`
+          : `Selected combination is worth ${selectedMeldPoints} points.`
+      }
+
       return 'Select one hand card and click the discard pile to discard, or select three or more cards to put down a combination.'
     }
 
@@ -273,7 +324,11 @@ export default function Game() {
     discardPileCombinationCard,
     discardPilePickupCombination.length,
     discardPilePickupError,
+    discardPilePickupPoints,
     serverState,
+    selectedMeldCards.length,
+    selectedMeldError,
+    selectedMeldPoints,
   ])
 
   useEffect(() => {
@@ -555,7 +610,7 @@ export default function Game() {
                   <strong>{player.id === serverState.youPlayerId ? 'You' : player.name}</strong>
                   <small>{player.connected ? 'Connected' : 'Disconnected'}</small>
                 </div>
-                <span>{player.handCount} cards</span>
+                <span>{player.handCount} cards · {playerMeldPoints.get(player.id) ?? 0} points</span>
                 {player.id === serverState.currentPlayerId ? <span className="turn-pill">Turn</span> : null}
               </article>
             ))}

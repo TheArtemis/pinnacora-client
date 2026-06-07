@@ -31,5 +31,6 @@ export type GameTableSceneProps = {
 
 export type SceneContentProps = GameTableSceneProps & {
   isLocalHandFocused: boolean
+  isMiddleTableFocused: boolean
   onLocalHandFocusChange: (isFocused: boolean) => void
 }

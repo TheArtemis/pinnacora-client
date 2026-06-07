@@ -1,4 +1,4 @@
-import { DoubleSide, MathUtils, type Mesh, type MeshStandardMaterial } from 'three'
+import { DoubleSide, MathUtils, type Group, type MeshStandardMaterial } from 'three'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
@@ -15,11 +15,14 @@ type CardMeshProps = {
   position: [number, number, number]
   rotation?: [number, number, number]
   animateFrom?: [number, number, number]
+  animateRotationFrom?: [number, number, number]
   opacity?: number
   scale?: number
   renderOrder?: number
   layerOnTop?: boolean
   outlineColor?: string
+  interactionWidth?: number
+  interactionOffsetX?: number
   onClick?: () => void
   onPointerOver?: () => void
   onPointerOut?: () => void
@@ -33,34 +36,38 @@ export default function CardMesh({
   position,
   rotation = [0, 0, 0],
   animateFrom,
+  animateRotationFrom,
   opacity = 1,
   scale = 1,
   renderOrder = 0,
   layerOnTop = false,
   outlineColor,
+  interactionWidth = CARD_WIDTH,
+  interactionOffsetX = 0,
   onClick,
   onPointerOver,
   onPointerOut,
 }: CardMeshProps) {
   const [initialPosition] = useState<[number, number, number]>(() => animateFrom ?? position)
-  const [initialRotation] = useState<[number, number, number]>(() => rotation)
-  const meshRef = useRef<Mesh>(null)
+  const [initialRotation] = useState<[number, number, number]>(() => animateRotationFrom ?? rotation)
+  const groupRef = useRef<Group>(null)
   const materialRef = useRef<MeshStandardMaterial>(null)
   const texture = hidden || !card ? getCardBackTexture() : getCardFaceTexture(card)
   const lift = selected ? (hovered ? 0.22 : 0.12) : hovered ? 0.18 : 0
   const animateFromKey = animateFrom?.join(',') ?? ''
   const resolvedOutlineColor = selected ? outlineColor : undefined
   const highlightColor = resolvedOutlineColor ?? '#f4ab35'
-  const outlineThickness = 0.08
+  const outlineThickness = 0.045
+  const hasInteraction = Boolean(onClick || onPointerOver || onPointerOut)
 
   useEffect(() => {
-    if (!meshRef.current || !animateFromKey) {
+    if (!groupRef.current || !animateFromKey) {
       return
     }
 
     const [x = 0, y = 0, z = 0] = animateFromKey.split(',').map(Number)
-    meshRef.current.position.set(x, y, z)
-    meshRef.current.scale.setScalar(0.72)
+    groupRef.current.position.set(x, y, z)
+    groupRef.current.scale.setScalar(0.72)
 
     if (materialRef.current) {
       materialRef.current.opacity = 0
@@ -68,18 +75,18 @@ export default function CardMesh({
   }, [animateFromKey])
 
   useFrame((_, delta) => {
-    if (!meshRef.current) {
+    if (!groupRef.current) {
       return
     }
 
-    meshRef.current.position.x = MathUtils.damp(meshRef.current.position.x, position[0], 10, delta)
-    meshRef.current.position.y = MathUtils.damp(meshRef.current.position.y, position[1] + lift, 18, delta)
-    meshRef.current.position.z = MathUtils.damp(meshRef.current.position.z, position[2], 10, delta)
-    meshRef.current.rotation.x = MathUtils.damp(meshRef.current.rotation.x, rotation[0], 10, delta)
-    meshRef.current.rotation.y = MathUtils.damp(meshRef.current.rotation.y, rotation[1], 10, delta)
-    meshRef.current.rotation.z = MathUtils.damp(meshRef.current.rotation.z, rotation[2], 10, delta)
-    const nextScale = MathUtils.damp(meshRef.current.scale.x, scale, 10, delta)
-    meshRef.current.scale.setScalar(nextScale)
+    groupRef.current.position.x = MathUtils.damp(groupRef.current.position.x, position[0], 10, delta)
+    groupRef.current.position.y = MathUtils.damp(groupRef.current.position.y, position[1] + lift, 18, delta)
+    groupRef.current.position.z = MathUtils.damp(groupRef.current.position.z, position[2], 10, delta)
+    groupRef.current.rotation.x = MathUtils.damp(groupRef.current.rotation.x, rotation[0], 10, delta)
+    groupRef.current.rotation.y = MathUtils.damp(groupRef.current.rotation.y, rotation[1], 10, delta)
+    groupRef.current.rotation.z = MathUtils.damp(groupRef.current.rotation.z, rotation[2], 10, delta)
+    const nextScale = MathUtils.damp(groupRef.current.scale.x, scale, 10, delta)
+    groupRef.current.scale.setScalar(nextScale)
 
     if (materialRef.current) {
       materialRef.current.opacity = MathUtils.damp(materialRef.current.opacity, opacity, 12, delta)
@@ -102,49 +109,59 @@ export default function CardMesh({
   }
 
   return (
-    <mesh
-      ref={meshRef}
+    <group
+      ref={groupRef}
       position={initialPosition}
       rotation={initialRotation}
       renderOrder={renderOrder}
-      onClick={onClick ? handleClick : undefined}
-      onPointerOver={onPointerOver ? handlePointerOver : undefined}
-      onPointerOut={onPointerOut ? handlePointerOut : undefined}
     >
-      <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
-      <meshStandardMaterial
-        ref={materialRef}
-        map={texture}
-        side={DoubleSide}
-        roughness={0.62}
-        metalness={0.02}
-        emissive={selected || hovered ? highlightColor : '#000000'}
-        emissiveIntensity={selected || hovered ? 0.18 : 0}
-        transparent
-        alphaTest={0.04}
-        depthTest={!layerOnTop}
-        depthWrite={!layerOnTop}
-      />
+      <mesh raycast={() => null}>
+        <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
+        <meshStandardMaterial
+          ref={materialRef}
+          map={texture}
+          side={DoubleSide}
+          roughness={0.62}
+          metalness={0.02}
+          emissive={selected || hovered ? highlightColor : '#000000'}
+          emissiveIntensity={selected || hovered ? 0.18 : 0}
+          transparent
+          alphaTest={0.04}
+          depthTest={!layerOnTop}
+          depthWrite={!layerOnTop}
+        />
+      </mesh>
       {resolvedOutlineColor ? (
         <>
-          <mesh position={[0, CARD_HEIGHT / 2 + outlineThickness / 2, 0.018]}>
-            <planeGeometry args={[CARD_WIDTH + outlineThickness * 2, outlineThickness]} />
+          <mesh position={[0, CARD_HEIGHT / 2 - outlineThickness / 2, 0.018]}>
+            <planeGeometry args={[CARD_WIDTH - outlineThickness * 2, outlineThickness]} />
             <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
           </mesh>
-          <mesh position={[0, -CARD_HEIGHT / 2 - outlineThickness / 2, 0.018]}>
-            <planeGeometry args={[CARD_WIDTH + outlineThickness * 2, outlineThickness]} />
+          <mesh position={[0, -CARD_HEIGHT / 2 + outlineThickness / 2, 0.018]}>
+            <planeGeometry args={[CARD_WIDTH - outlineThickness * 2, outlineThickness]} />
             <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
           </mesh>
-          <mesh position={[-CARD_WIDTH / 2 - outlineThickness / 2, 0, 0.018]}>
-            <planeGeometry args={[outlineThickness, CARD_HEIGHT]} />
+          <mesh position={[-CARD_WIDTH / 2 + outlineThickness / 2, 0, 0.018]}>
+            <planeGeometry args={[outlineThickness, CARD_HEIGHT - outlineThickness * 2]} />
             <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
           </mesh>
-          <mesh position={[CARD_WIDTH / 2 + outlineThickness / 2, 0, 0.018]}>
-            <planeGeometry args={[outlineThickness, CARD_HEIGHT]} />
+          <mesh position={[CARD_WIDTH / 2 - outlineThickness / 2, 0, 0.018]}>
+            <planeGeometry args={[outlineThickness, CARD_HEIGHT - outlineThickness * 2]} />
             <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
           </mesh>
         </>
       ) : null}
-    </mesh>
+      {hasInteraction ? (
+        <mesh
+          position={[interactionOffsetX, 0, 0.04]}
+          onClick={onClick ? handleClick : undefined}
+          onPointerOver={onPointerOver ? handlePointerOver : undefined}
+          onPointerOut={onPointerOut ? handlePointerOut : undefined}
+        >
+          <planeGeometry args={[interactionWidth, CARD_HEIGHT]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
+    </group>
   )
 }

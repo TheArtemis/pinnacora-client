@@ -8,14 +8,19 @@ export default function GameTableScene(props: GameTableSceneProps) {
   const viewerPlayerId = localPlayerId(props.state)
   const opponent = props.state?.players.find((player) => player.id !== viewerPlayerId)
   const [isLowerCanvasFocused, setIsLowerCanvasFocused] = useState(false)
+  const [isMiddleCanvasFocused, setIsMiddleCanvasFocused] = useState(false)
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
   const isLocalHandFocused = isLowerCanvasFocused || isHandAreaFocused
+  const isMiddleTableFocused = isMiddleCanvasFocused && !isLocalHandFocused
+  const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
 
   function handleScenePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     const bounds = event.currentTarget.getBoundingClientRect()
     const pointerY = event.clientY - bounds.top
+    const isInLowerCanvas = pointerY > bounds.height * 0.62
 
-    setIsLowerCanvasFocused(pointerY > bounds.height * 0.62)
+    setIsLowerCanvasFocused(isInLowerCanvas)
+    setIsMiddleCanvasFocused(pointerY > bounds.height * 0.28 && !isInLowerCanvas)
   }
 
   return (
@@ -24,6 +29,7 @@ export default function GameTableScene(props: GameTableSceneProps) {
       onPointerMove={handleScenePointerMove}
       onPointerLeave={() => {
         setIsLowerCanvasFocused(false)
+        setIsMiddleCanvasFocused(false)
         setIsHandAreaFocused(false)
       }}
     >
@@ -31,6 +37,7 @@ export default function GameTableScene(props: GameTableSceneProps) {
         <SceneContent
           {...props}
           isLocalHandFocused={isLocalHandFocused}
+          isMiddleTableFocused={isMiddleTableFocused}
           onLocalHandFocusChange={setIsHandAreaFocused}
         />
       </Canvas>
@@ -56,24 +63,26 @@ export default function GameTableScene(props: GameTableSceneProps) {
           <strong>{opponent?.handCount ?? 0} backs</strong>
         </div>
       </div>
-      <div className="game-scene__sort-actions" aria-label="Hand sorting">
-        <button
-          type="button"
-          className={props.handSortMode === 'suit' ? 'secondary-button secondary-button--active' : 'secondary-button'}
-          onClick={() => props.onHandSortModeChange('suit')}
-          aria-pressed={props.handSortMode === 'suit'}
-        >
-          Order by suit
-        </button>
-        <button
-          type="button"
-          className={props.handSortMode === 'value' ? 'secondary-button secondary-button--active' : 'secondary-button'}
-          onClick={() => props.onHandSortModeChange('value')}
-          aria-pressed={props.handSortMode === 'value'}
-        >
-          Order by value
-        </button>
-      </div>
+      {isSceneCloseUp ? (
+        <div className="game-scene__sort-actions" aria-label="Hand sorting">
+          <button
+            type="button"
+            className={props.handSortMode === 'suit' ? 'secondary-button secondary-button--active' : 'secondary-button'}
+            onClick={() => props.onHandSortModeChange('suit')}
+            aria-pressed={props.handSortMode === 'suit'}
+          >
+            Order by suit
+          </button>
+          <button
+            type="button"
+            className={props.handSortMode === 'value' ? 'secondary-button secondary-button--active' : 'secondary-button'}
+            onClick={() => props.onHandSortModeChange('value')}
+            aria-pressed={props.handSortMode === 'value'}
+          >
+            Order by value
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

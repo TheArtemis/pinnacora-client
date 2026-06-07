@@ -25,7 +25,7 @@ export default function OpponentHand({ state, hoveredCardIndexes }: OpponentHand
           radius: 6.9,
           baseY: 1.8,
           edgeYOffset: 0,
-          baseZ: -6.15,
+          baseZ: -9.35,
           edgeZOffset: 0.84,
         })
         const isHovered = hoveredCardIndexes.has(index)
