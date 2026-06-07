@@ -54,14 +54,11 @@ function createTexture(cacheKey: string, draw: (context: CanvasRenderingContext2
 
 export function getCardBackTexture() {
   return createTexture('back', (context, width, height) => {
-    context.fillStyle = '#fffaf5'
+    context.fillStyle = '#ffffff'
     roundedRect(context, 8, 8, width - 16, height - 16, 44)
     context.fill()
 
-    const gradient = context.createLinearGradient(0, 0, width, height)
-    gradient.addColorStop(0, '#a6427b')
-    gradient.addColorStop(1, '#17634d')
-    context.fillStyle = gradient
+    context.fillStyle = '#2563eb'
     roundedRect(context, 34, 34, width - 68, height - 68, 34)
     context.fill()
 
@@ -89,7 +86,7 @@ export function getCardFaceTexture(card: CardType, borderColor?: string) {
     const color = isRed ? '#b3263a' : '#172033'
     const cornerSuitFont = card.suit === 'joker' ? '800 34px Inter, Arial, sans-serif' : '800 58px Georgia, serif'
 
-    context.fillStyle = '#fffaf5'
+    context.fillStyle = '#ffffff'
     roundedRect(context, 8, 8, width - 16, height - 16, 44)
     context.fill()
 

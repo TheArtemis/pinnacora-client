@@ -64,7 +64,7 @@ export default function DiscardPile({
         onPointerOut={canDropDraggedCard ? () => onDiscardDropTargetChange(false) : undefined}
       >
         <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
-        <meshStandardMaterial color={canDropDraggedCard ? '#f4ab35' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.34 : canDiscard ? 0.22 : 0.1} />
+        <meshStandardMaterial color={canDropDraggedCard ? '#2563eb' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.28 : canDiscard ? 0.2 : 0.1} />
       </mesh>
       {cards.map((card, index) => {
         const selected = discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex

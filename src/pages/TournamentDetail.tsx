@@ -136,6 +136,10 @@ export default function TournamentDetail() {
     )
   }
 
+  const activeGame = tournament.games.find((game) => game.status !== 'FINISHED')
+  const hasActiveGame = Boolean(activeGame)
+  const canStartGame = tournament.status === 'ACTIVE' && !hasActiveGame
+
   return (
     <main className="page-shell tournaments-page">
       <header className="dashboard-header">
@@ -145,6 +149,14 @@ export default function TournamentDetail() {
           <p className="lede">Private join code: {tournament.joinCode}</p>
         </div>
         <div className="header-actions">
+          {activeGame ? (
+            <Link
+              className="primary-link"
+              to={`/game/${activeGame.roomCode}?tournamentId=${tournament.id}&gameDbId=${activeGame.id}`}
+            >
+              Go to game
+            </Link>
+          ) : null}
           <button type="button" className="secondary-button" onClick={handleCopyTournamentLink}>
             {copiedLink ? 'Copied!' : 'Copy tournament link'}
           </button>
@@ -168,17 +180,10 @@ export default function TournamentDetail() {
           </div>
         </article>
 
-        <article className="dashboard-panel">
-          <h2>Placeholder rules</h2>
-          <p className="muted">
-            Games can be finished manually for now. The finisher is recorded as the placeholder
-            winner until the real Pinnacora rules are added.
-          </p>
-        </article>
       </section>
 
       <section className="dashboard-panel">
-        <div className="section-heading">
+        <div className="section-heading section-heading--compact">
           <h2>Standings</h2>
           <span>{tournament.results.finishedGames} finished games</span>
         </div>
@@ -198,13 +203,18 @@ export default function TournamentDetail() {
       <section className="dashboard-panel">
         <div className="section-heading">
           <h2>Games</h2>
-          {tournament.status === 'ACTIVE' ? (
-            <button type="button" onClick={handleCreateGame} disabled={submitting}>
-              Start game
-            </button>
-          ) : null}
         </div>
         <div className="game-list">
+          {canStartGame ? (
+            <button
+              type="button"
+              className="game-row game-row--action"
+              onClick={handleCreateGame}
+              disabled={submitting}
+            >
+              + {submitting ? 'Starting game...' : 'Start new game'}
+            </button>
+          ) : null}
           {tournament.games.map((game) => (
             <article className="game-row" key={game.id}>
               <div>
@@ -225,7 +235,7 @@ export default function TournamentDetail() {
               ) : null}
             </article>
           ))}
-          {tournament.games.length === 0 ? <p className="muted">No games yet.</p> : null}
+          {!canStartGame && tournament.games.length === 0 ? <p className="muted">No games yet.</p> : null}
         </div>
       </section>
 

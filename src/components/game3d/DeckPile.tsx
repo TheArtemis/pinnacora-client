@@ -64,7 +64,7 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
     return (
       <mesh position={[deckPosition.x, tableCardBaseY - 0.015, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
-        <meshStandardMaterial color="#ffffff" transparent opacity={0.18} />
+        <meshStandardMaterial color="#2563eb" transparent opacity={0.14} />
       </mesh>
     )
   }
@@ -112,11 +112,11 @@ export function DeckDrawArrow({ visible }: { visible: boolean }) {
     <group position={[deckPosition.x, 0, deckPosition.z - 0.08]}>
       <mesh ref={arrowRef} position={[0, 1.44, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.28, 0.68, 32]} />
-        <meshStandardMaterial color="#f4ab35" emissive="#a6427b" emissiveIntensity={0.35} roughness={0.38} />
+        <meshStandardMaterial color="#2563eb" emissive="#1d4ed8" emissiveIntensity={0.24} roughness={0.42} />
       </mesh>
       <mesh position={[0, 0.76, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.4, 0.54, 32]} />
-        <meshStandardMaterial color="#f4ab35" transparent opacity={0.54} />
+        <meshStandardMaterial color="#2563eb" transparent opacity={0.42} />
       </mesh>
     </group>
   )

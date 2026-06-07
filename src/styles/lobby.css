@@ -8,7 +8,7 @@
 .hero-panel,
 .setup-panel {
   border: 1px solid var(--border);
-  border-radius: 28px;
+  border-radius: 24px;
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -63,7 +63,13 @@
   padding: 13px 16px;
   color: var(--text-h);
   background: var(--input);
+  border: 1px solid var(--border);
   text-transform: uppercase;
+}
+
+.join-form input:focus {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-bg);
 }
 
 .setup-panel ul {
@@ -72,4 +78,11 @@
   padding: 0;
   margin: 24px 0 0;
   list-style: none;
+}
+
+.setup-panel li {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--panel-soft);
 }

@@ -198,7 +198,7 @@ export default function MeldCards({
                   hovered={isHoveredJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
                   outlineColor={
                     isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget
-                      ? '#3f7a54'
+                      ? '#15803d'
                       : undefined
                   }
                   fidgetTrigger={fidgetTriggers.get(meldCardId) ?? 0}

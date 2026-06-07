@@ -260,9 +260,9 @@ export default function Game() {
     hasEnoughSelectedCombinationCards && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
   const selectedCardOutlineColor =
     selectedMeldCards.length === 1
-      ? (swappableMeldJokerIds.size > 0 ? '#3f7a54' : undefined)
+      ? (swappableMeldJokerIds.size > 0 ? '#15803d' : undefined)
       : selectedMeldCards.length > 0
-        ? (isSelectedCombinationValid ? '#3f7a54' : '#8f3d36')
+        ? (isSelectedCombinationValid ? '#15803d' : '#b91c1c')
         : undefined
   const discardPilePickupCombination = discardPileCombinationCard
     ? [discardPileCombinationCard, ...selectedMeldCards]

@@ -15,6 +15,14 @@ function App() {
         path="/"
         element={
           <RequireAuth>
+            <Tournaments />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/lobby"
+        element={
+          <RequireAuth>
             <Lobby />
           </RequireAuth>
         }

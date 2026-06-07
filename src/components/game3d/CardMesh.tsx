@@ -142,11 +142,11 @@ const CardMesh = memo(function CardMesh({
   const materialRef = useRef<MeshStandardMaterial>(null)
   const fidgetElapsedRef = useRef(FIDGET_DURATION_SECONDS)
   const fidgetDirectionRef = useRef(1)
-  const selectedBorderColor = selected ? outlineColor ?? '#f4ab35' : undefined
+  const selectedBorderColor = selected ? outlineColor ?? '#2563eb' : undefined
   const texture = hidden || !card ? getCardBackTexture() : getCardFaceTexture(card, selectedBorderColor)
   const lift = disableLift ? 0 : selected ? (hovered ? 0.22 : 0.12) : hovered ? 0.18 : 0
   const animateFromKey = animateFrom?.join(',') ?? ''
-  const highlightColor = selectedBorderColor ?? '#f4ab35'
+  const highlightColor = selectedBorderColor ?? '#2563eb'
   const hasInteraction = Boolean(fidgetable || onClick || onPointerOver || onPointerOut)
 
   const startFidget = useCallback(() => {

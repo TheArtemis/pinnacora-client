@@ -7,7 +7,7 @@
 .dashboard-panel,
 .tournament-card {
   border: 1px solid var(--border);
-  border-radius: 28px;
+  border-radius: 24px;
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -65,13 +65,21 @@
   align-items: center;
 }
 
+.section-heading--compact {
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
 .section-heading span,
 .status-pill {
-  border-radius: 999px;
+  border-radius: 14px;
   padding: 7px 12px;
   color: var(--accent);
   background: var(--accent-bg);
   font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .card-grid {
@@ -112,9 +120,10 @@
 .standing-row,
 .game-row,
 .player-list span {
-  border-radius: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 14px;
-  background: var(--accent-bg);
+  background: var(--panel-soft);
 }
 
 .stats-grid dt {
@@ -136,7 +145,23 @@
 }
 
 .game-row {
-  background: var(--input);
+  background: var(--panel-soft);
+}
+
+.game-row--action {
+  width: 100%;
+  justify-content: flex-start;
+  border-color: var(--accent);
+  border-style: dashed;
+  color: var(--accent);
+  background: var(--accent-soft);
+  text-align: left;
+}
+
+.game-row--action:hover {
+  color: var(--accent-strong);
+  border-color: var(--accent-strong);
+  background: var(--accent-bg);
 }
 
 .detail-actions {

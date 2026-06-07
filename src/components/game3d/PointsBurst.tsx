@@ -38,13 +38,13 @@ function createPointsTexture(label: string) {
     context.textAlign = 'center'
     context.textBaseline = 'middle'
     context.lineJoin = 'round'
-    context.shadowColor = 'rgba(0, 0, 0, 0.55)'
-    context.shadowBlur = 18
-    context.shadowOffsetY = 8
+    context.shadowColor = 'rgba(17, 24, 39, 0.18)'
+    context.shadowBlur = 10
+    context.shadowOffsetY = 5
     context.lineWidth = 16
-    context.strokeStyle = '#3b2610'
+    context.strokeStyle = '#ffffff'
     context.strokeText(label, canvas.width / 2, canvas.height / 2)
-    context.fillStyle = '#ffd76a'
+    context.fillStyle = '#2563eb'
     context.fillText(label, canvas.width / 2, canvas.height / 2)
   }
 

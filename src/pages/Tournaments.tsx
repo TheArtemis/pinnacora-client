@@ -8,54 +8,49 @@ import {
   type Tournament,
 } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import TournamentCard from '../components/tournaments/TournamentCard'
 
-function tournamentLink(tournamentId: string) {
-  return `${window.location.origin}/tournaments/${tournamentId}`
-}
+const inputClass =
+  'h-[3.25rem] w-full rounded-2xl border border-[var(--border)] bg-[var(--input)] px-5 text-base font-bold text-[var(--text-h)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-bg)]'
+const primaryButtonClass =
+  'inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[var(--accent)] px-6 font-black text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60'
+const secondaryButtonClass =
+  'inline-flex h-11 items-center justify-center rounded-2xl border-2 border-[var(--secondary-border)] bg-[var(--panel)] px-5 text-sm font-black text-[var(--secondary)] transition hover:border-[var(--secondary-strong)] hover:bg-[var(--secondary-hover-bg)] hover:text-[var(--secondary-strong)] disabled:cursor-not-allowed disabled:opacity-60'
 
-function TournamentCard({ tournament }: { tournament: Tournament }) {
-  const leader = tournament.results.standings[0]
-  const [copied, setCopied] = useState(false)
-
-  async function handleCopyTournamentLink() {
-    await navigator.clipboard.writeText(tournamentLink(tournament.id))
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1800)
-  }
+function TournamentSection({
+  columns = 'two',
+  emptyMessage,
+  loading,
+  title,
+  tournaments,
+}: {
+  columns?: 'one' | 'two'
+  emptyMessage: string
+  loading: boolean
+  title: string
+  tournaments: Tournament[]
+}) {
+  const gridClass = columns === 'one' ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 gap-3 md:grid-cols-2'
 
   return (
-    <article className="tournament-card">
-      <div className="card-header">
-        <div>
-          <p className="eyebrow">{tournament.status === 'ACTIVE' ? 'Active' : 'Past'}</p>
-          <h3>{tournament.name}</h3>
-        </div>
-        <span className="status-pill">{tournament.status}</span>
+    <section className="grid gap-3">
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="text-2xl font-black tracking-[-0.04em] text-[var(--text-h)]">{title}</h2>
+        <span className="text-sm font-bold text-[var(--muted)]">{tournaments.length}</span>
       </div>
-      <p className="muted">Join code: {tournament.joinCode}</p>
-      <dl className="stats-grid">
-        <div>
-          <dt>Players</dt>
-          <dd>{tournament.participants.length}</dd>
-        </div>
-        <div>
-          <dt>Games</dt>
-          <dd>{tournament.results.finishedGames}</dd>
-        </div>
-        <div>
-          <dt>Leader</dt>
-          <dd>{leader?.user.displayName ?? leader?.user.email ?? 'No results yet'}</dd>
-        </div>
-      </dl>
-      <div className="tournament-card-actions">
-        <Link className="text-link" to={`/tournaments/${tournament.id}`}>
-          Open tournament
-        </Link>
-        <button type="button" className="secondary-button" onClick={handleCopyTournamentLink}>
-          {copied ? 'Copied!' : 'Copy link'}
-        </button>
+
+      <div className={gridClass}>
+        {tournaments.map((tournament) => (
+          <TournamentCard key={tournament.id} tournament={tournament} />
+        ))}
       </div>
-    </article>
+
+      {!loading && tournaments.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)] p-5 text-[var(--muted)]">
+          <p className="font-bold">{emptyMessage}</p>
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -117,11 +112,16 @@ export default function Tournaments() {
       return
     }
 
+    const tournamentName = name.trim()
+    if (!tournamentName) {
+      return
+    }
+
     setSubmitting(true)
     setError('')
 
     try {
-      const response = await createTournament(user, name)
+      const response = await createTournament(user, tournamentName)
       navigate(`/tournaments/${response.tournament.id}`)
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Could not create tournament.')
@@ -137,11 +137,16 @@ export default function Tournaments() {
       return
     }
 
+    const tournamentJoinCode = joinCode.trim()
+    if (!tournamentJoinCode) {
+      return
+    }
+
     setSubmitting(true)
     setError('')
 
     try {
-      const response = await joinTournament(user, joinCode)
+      const response = await joinTournament(user, tournamentJoinCode)
       navigate(`/tournaments/${response.tournament.id}`)
     } catch (joinError) {
       setError(joinError instanceof Error ? joinError.message : 'Could not join tournament.')
@@ -152,81 +157,97 @@ export default function Tournaments() {
 
   return (
     <main className="page-shell tournaments-page">
-      <header className="dashboard-header">
-        <div>
-          <p className="eyebrow">Tournaments</p>
-          <h1>Your Pinnacora tournaments.</h1>
-          <p className="lede">Keep multiple private tournaments active and review past results.</p>
-        </div>
-        <button type="button" className="secondary-button" onClick={logout}>
-          Log out
-        </button>
-      </header>
+      <div className="grid w-full gap-6">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-[var(--muted)]">
+              {user?.displayName ?? user?.email ?? 'Signed in'}
+            </p>
+            <h1 className="mt-1 text-4xl font-black tracking-[-0.06em] text-[var(--text-h)]">
+              Tournaments
+            </h1>
+            <p className="mt-2 text-base font-semibold text-[var(--muted)]">
+              Create one, join one, or open an active tournament.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link className={secondaryButtonClass} to="/lobby">
+              Quick game
+            </Link>
+            <button type="button" className={secondaryButtonClass} onClick={logout}>
+              Log out
+            </button>
+          </div>
+        </header>
 
-      <section className="dashboard-grid">
-        <form className="dashboard-panel form-panel" onSubmit={handleCreateTournament}>
-          <h2>Create tournament</h2>
-          <label htmlFor="tournament-name">Name</label>
-          <input
-            id="tournament-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Weekend match"
-            required
-          />
-          <button type="submit" disabled={submitting}>
-            Create tournament
-          </button>
-        </form>
+        <section className="grid gap-3 rounded-3xl border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow)] md:grid-cols-2">
+          <div>
+            <h2 className="text-lg font-black text-[var(--text-h)]">Create tournament</h2>
+            <form className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={handleCreateTournament}>
+              <label className="sr-only" htmlFor="tournament-name">
+                Tournament name
+              </label>
+              <input
+                className={inputClass}
+                id="tournament-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Weekend match"
+                required
+              />
+              <button className={primaryButtonClass} type="submit" disabled={submitting || !name.trim()}>
+                Create
+              </button>
+            </form>
+          </div>
 
-        <form className="dashboard-panel form-panel" onSubmit={handleJoinTournament}>
-          <h2>Join tournament</h2>
-          <label htmlFor="join-code">Private code</label>
-          <input
-            id="join-code"
-            value={joinCode}
-            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-            placeholder="ABC123"
-            required
-          />
-          <button type="submit" disabled={submitting}>
-            Join tournament
-          </button>
-        </form>
-      </section>
+          <div>
+            <h2 className="text-lg font-black text-[var(--text-h)]">Join tournament</h2>
+            <form className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={handleJoinTournament}>
+              <label className="sr-only" htmlFor="join-code">
+                Private code
+              </label>
+              <input
+                className={`${inputClass} uppercase`}
+                id="join-code"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                placeholder="ABC123"
+                required
+              />
+              <button className={primaryButtonClass} type="submit" disabled={submitting || !joinCode.trim()}>
+                Join
+              </button>
+            </form>
+          </div>
+        </section>
 
-      {error ? <p className="form-error">{error}</p> : null}
-      {loading ? <p className="muted">Loading tournaments...</p> : null}
+        {error ? (
+          <p className="rounded-3xl border border-[var(--danger)] bg-[var(--danger-bg)] px-5 py-4 font-bold text-[var(--danger)]">
+            {error}
+          </p>
+        ) : null}
+        {loading ? (
+          <p className="rounded-3xl border border-[var(--border)] bg-[var(--panel)] px-5 py-4 font-bold text-[var(--muted)]">
+            Loading tournaments...
+          </p>
+        ) : null}
 
-      <section className="tournament-section">
-        <div className="section-heading">
-          <h2>Active tournaments</h2>
-          <span>{activeTournaments.length}</span>
-        </div>
-        <div className="card-grid">
-          {activeTournaments.map((tournament) => (
-            <TournamentCard key={tournament.id} tournament={tournament} />
-          ))}
-          {!loading && activeTournaments.length === 0 ? (
-            <p className="muted">No active tournaments yet.</p>
-          ) : null}
-        </div>
-      </section>
+        <TournamentSection
+          emptyMessage="No active tournaments yet. Create one above to get started."
+          loading={loading}
+          title="Available now"
+          tournaments={activeTournaments}
+        />
 
-      <section className="tournament-section">
-        <div className="section-heading">
-          <h2>Past tournaments</h2>
-          <span>{pastTournaments.length}</span>
-        </div>
-        <div className="card-grid">
-          {pastTournaments.map((tournament) => (
-            <TournamentCard key={tournament.id} tournament={tournament} />
-          ))}
-          {!loading && pastTournaments.length === 0 ? (
-            <p className="muted">Completed tournaments will show up here.</p>
-          ) : null}
-        </div>
-      </section>
+        <TournamentSection
+          columns="one"
+          emptyMessage="Completed tournaments will show up here."
+          loading={loading}
+          title="Archive"
+          tournaments={pastTournaments}
+        />
+      </div>
     </main>
   )
 }
