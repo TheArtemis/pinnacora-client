@@ -10,10 +10,10 @@ import { useAuth } from '../auth/useAuth'
 type HandSortMode = 'suit' | 'value'
 
 const suitOrder: Record<CardType['suit'], number> = {
-  clubs: 0,
-  diamonds: 1,
-  hearts: 2,
-  spades: 3,
+  spades: 0,
+  hearts: 1,
+  clubs: 2,
+  diamonds: 3,
   joker: 4,
 }
 

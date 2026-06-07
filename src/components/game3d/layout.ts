@@ -8,6 +8,15 @@ type HandFanLayoutOptions = {
   edgeZOffset: number
 }
 
+type CardTopFanYOffsetOptions = {
+  fanAngle: number
+  rotationX: number
+  rotationZ: number
+  cardHeight: number
+  cardWidth: number
+  arcRadius: number
+}
+
 export function localPlayerId(state: ServerGameState | null) {
   return state?.players.find((player) => player.hand !== undefined)?.id ?? state?.youPlayerId
 }
@@ -27,7 +36,7 @@ export function handFanLayout(index: number, total: number, options: HandFanLayo
   const normalizedIndex = centerIndex === 0 ? 0 : (index - centerIndex) / centerIndex
   const maxFanAngle = Math.min(0.96, Math.max(0.38, total * 0.085))
   const fanAngle = normalizedIndex * maxFanAngle
-  const curveAmount = Math.abs(normalizedIndex)
+  const curveAmount = Math.abs(normalizedIndex) ** 1.35
 
   return {
     fanAngle,
@@ -36,4 +45,25 @@ export function handFanLayout(index: number, total: number, options: HandFanLayo
     y: options.baseY - curveAmount * options.edgeYOffset,
     z: options.baseZ + curveAmount * options.edgeZOffset,
   }
+}
+
+export function cardTopFanYOffset({
+  fanAngle,
+  rotationX,
+  rotationZ,
+  cardHeight,
+  cardWidth,
+  arcRadius,
+}: CardTopFanYOffsetOptions) {
+  const halfCardHeight = cardHeight / 2
+  const halfCardWidth = cardWidth / 2
+  const absoluteRotationZ = Math.abs(rotationZ)
+  const centeredTopYOffset = Math.cos(rotationX) * halfCardHeight
+  const topCornerYOffset =
+    Math.cos(rotationX) *
+    (halfCardHeight * Math.cos(absoluteRotationZ) + halfCardWidth * Math.sin(absoluteRotationZ))
+  const topEdgeCompensation = Math.max(0, topCornerYOffset - centeredTopYOffset)
+  const topArcDrop = (1 - Math.cos(fanAngle)) * arcRadius
+
+  return topArcDrop + topEdgeCompensation
 }
