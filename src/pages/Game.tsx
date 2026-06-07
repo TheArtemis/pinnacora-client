@@ -700,6 +700,7 @@ export default function Game() {
           onHandSortModeChange={handleChangeHandSortMode}
           onDiscardPileCardClick={handlePickUpDiscardPile}
           onDiscardPileCardHover={setHoveredDiscardPileStartIndex}
+          onDiscardHandCard={handleDiscardCard}
           onDiscardSelectedCard={handleDiscardSelectedCard}
           onPutDownMeld={handlePutDownMeld}
         />

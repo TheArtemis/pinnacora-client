@@ -26,6 +26,7 @@ export type GameTableSceneProps = {
   onHandSortModeChange: (sortMode: HandSortMode) => void
   onDiscardPileCardClick: (index: number) => void
   onDiscardPileCardHover: (index: number | null) => void
+  onDiscardHandCard: (cardId: string) => void
   onDiscardSelectedCard: () => void
   onPutDownMeld: () => void
 }

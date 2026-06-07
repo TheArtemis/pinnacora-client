@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { ThreeEvent } from '@react-three/fiber'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { localHandBaseZ, tableCardBaseY } from './constants'
@@ -11,9 +12,11 @@ type DiscardPileProps = Pick<
   | 'discardPileHighlightStartIndex'
   | 'onDiscardPileCardClick'
   | 'onDiscardPileCardHover'
+  | 'onDiscardHandCard'
   | 'onDiscardSelectedCard'
 > & {
   cards: CardType[]
+  draggedHandCardId: string | null
 }
 
 export default function DiscardPile({
@@ -23,6 +26,8 @@ export default function DiscardPile({
   discardPileHighlightStartIndex,
   onDiscardPileCardClick,
   onDiscardPileCardHover,
+  draggedHandCardId,
+  onDiscardHandCard,
   onDiscardSelectedCard,
 }: DiscardPileProps) {
   const hasSeenInitialDiscardRef = useRef(false)
@@ -32,21 +37,35 @@ export default function DiscardPile({
     : new Set<string>()
   const cardSpread = Math.max(0.28, Math.min(0.48, 8.4 / Math.max(cards.length - 1, 1)))
   const discardCardY = tableCardBaseY + 0.018
+  const canDropDraggedCard = canDiscard && Boolean(draggedHandCardId)
+  const dropTargetWidth = Math.max(CARD_WIDTH * 1.35, CARD_WIDTH + Math.max(cards.length - 1, 0) * cardSpread)
+  const dropTargetX = -2.36 + (Math.max(cards.length - 1, 0) * cardSpread) / 2
+  const dropTargetZ = -0.4 - (Math.max(cards.length - 1, 0) * 0.09) / 2
 
   useEffect(() => {
     seenDiscardCardIdsRef.current = new Set(cards.map((card) => card.id))
     hasSeenInitialDiscardRef.current = true
   }, [cards])
 
+  function handleDraggedCardDrop(event: ThreeEvent<PointerEvent>) {
+    event.stopPropagation()
+
+    if (!draggedHandCardId || !canDiscard) {
+      return
+    }
+
+    onDiscardHandCard(draggedHandCardId)
+  }
+
   return (
     <group>
       <mesh
         position={[-2.36, tableCardBaseY - 0.015, -0.4]}
         rotation={[-Math.PI / 2, 0, 0]}
-        onClick={canDiscard ? onDiscardSelectedCard : undefined}
+        onClick={canDiscard && !canDropDraggedCard ? onDiscardSelectedCard : undefined}
       >
         <planeGeometry args={[CARD_WIDTH * 1.35, CARD_HEIGHT * 1.24]} />
-        <meshStandardMaterial color="#ffffff" transparent opacity={canDiscard ? 0.22 : 0.1} />
+        <meshStandardMaterial color={canDropDraggedCard ? '#f4ab35' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.34 : canDiscard ? 0.22 : 0.1} />
       </mesh>
       {cards.map((card, index) => {
         const selected = discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex
@@ -70,14 +89,25 @@ export default function DiscardPile({
             selected={selected}
             renderOrder={20 + index}
             layerOnTop
-            onClick={canPickUpDiscardPile ? () => onDiscardPileCardClick(index) : canDiscard ? onDiscardSelectedCard : undefined}
-            onPointerOver={canPickUpDiscardPile ? () => onDiscardPileCardHover(index) : undefined}
-            onPointerOut={canPickUpDiscardPile ? () => onDiscardPileCardHover(null) : undefined}
+            onClick={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardClick(index) : canDiscard ? onDiscardSelectedCard : undefined}
+            onPointerOver={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardHover(index) : undefined}
+            onPointerOut={canDropDraggedCard ? undefined : canPickUpDiscardPile ? () => onDiscardPileCardHover(null) : undefined}
             interactionWidth={interactionWidth}
             interactionOffsetX={interactionOffsetX}
           />
         )
       })}
+      {canDropDraggedCard ? (
+        <mesh
+          position={[dropTargetX, discardCardY + 0.12, dropTargetZ]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          onPointerUp={handleDraggedCardDrop}
+          renderOrder={180}
+        >
+          <planeGeometry args={[dropTargetWidth, CARD_HEIGHT * 1.35]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
     </group>
   )
 }

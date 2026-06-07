@@ -20,6 +20,7 @@ type CardMeshProps = {
   scale?: number
   renderOrder?: number
   layerOnTop?: boolean
+  snapToPosition?: boolean
   outlineColor?: string
   interactionWidth?: number
   interactionOffsetX?: number
@@ -41,6 +42,7 @@ export default function CardMesh({
   scale = 1,
   renderOrder = 0,
   layerOnTop = false,
+  snapToPosition = false,
   outlineColor,
   interactionWidth = CARD_WIDTH,
   interactionOffsetX = 0,
@@ -78,14 +80,20 @@ export default function CardMesh({
       return
     }
 
-    groupRef.current.position.x = MathUtils.damp(groupRef.current.position.x, position[0], 10, delta)
-    groupRef.current.position.y = MathUtils.damp(groupRef.current.position.y, position[1] + lift, 18, delta)
-    groupRef.current.position.z = MathUtils.damp(groupRef.current.position.z, position[2], 10, delta)
-    groupRef.current.rotation.x = MathUtils.damp(groupRef.current.rotation.x, rotation[0], 10, delta)
-    groupRef.current.rotation.y = MathUtils.damp(groupRef.current.rotation.y, rotation[1], 10, delta)
-    groupRef.current.rotation.z = MathUtils.damp(groupRef.current.rotation.z, rotation[2], 10, delta)
-    const nextScale = MathUtils.damp(groupRef.current.scale.x, scale, 10, delta)
-    groupRef.current.scale.setScalar(nextScale)
+    if (snapToPosition) {
+      groupRef.current.position.set(position[0], position[1] + lift, position[2])
+      groupRef.current.rotation.set(rotation[0], rotation[1], rotation[2])
+      groupRef.current.scale.setScalar(scale)
+    } else {
+      groupRef.current.position.x = MathUtils.damp(groupRef.current.position.x, position[0], 10, delta)
+      groupRef.current.position.y = MathUtils.damp(groupRef.current.position.y, position[1] + lift, 18, delta)
+      groupRef.current.position.z = MathUtils.damp(groupRef.current.position.z, position[2], 10, delta)
+      groupRef.current.rotation.x = MathUtils.damp(groupRef.current.rotation.x, rotation[0], 10, delta)
+      groupRef.current.rotation.y = MathUtils.damp(groupRef.current.rotation.y, rotation[1], 10, delta)
+      groupRef.current.rotation.z = MathUtils.damp(groupRef.current.rotation.z, rotation[2], 10, delta)
+      const nextScale = MathUtils.damp(groupRef.current.scale.x, scale, 10, delta)
+      groupRef.current.scale.setScalar(nextScale)
+    }
 
     if (materialRef.current) {
       materialRef.current.opacity = MathUtils.damp(materialRef.current.opacity, opacity, 12, delta)

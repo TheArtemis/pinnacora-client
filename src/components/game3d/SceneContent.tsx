@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
@@ -14,6 +14,7 @@ import type { SceneContentProps } from './types'
 export default function SceneContent(props: SceneContentProps) {
   const discardPile = props.state?.discardPile ?? []
   const tableCardsRef = useRef<Group>(null)
+  const [draggedHandCardId, setDraggedHandCardId] = useState<string | null>(null)
   const puttingDownCardIds = useMemo(
     () => new Set(props.puttingDownCards.map((card) => card.id)),
     [props.puttingDownCards],
@@ -52,6 +53,8 @@ export default function SceneContent(props: SceneContentProps) {
           discardPileHighlightStartIndex={props.discardPileHighlightStartIndex}
           onDiscardPileCardClick={props.onDiscardPileCardClick}
           onDiscardPileCardHover={props.onDiscardPileCardHover}
+          draggedHandCardId={draggedHandCardId}
+          onDiscardHandCard={props.onDiscardHandCard}
           onDiscardSelectedCard={props.onDiscardSelectedCard}
         />
         <MeldCards state={props.state} />
@@ -66,6 +69,7 @@ export default function SceneContent(props: SceneContentProps) {
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}
+        onHandCardDragChange={setDraggedHandCardId}
         onHandCardHover={props.onHandCardHover}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
