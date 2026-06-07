@@ -1,14 +1,19 @@
 import type { Card } from './cardTypes'
-import { getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
+import { canAddCardToMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
 import { calculateMeldPoints } from './scoring'
 import type { ServerGameState } from './serverTypes'
 
 export type OptimisticGameAction =
   | { id: string; type: 'draw_card'; placeholderCard: Card }
-  | { id: string; type: 'pick_up_discard_pile'; cardIndex: number; cardIds: string[] }
+  | { id: string; type: 'pick_up_discard_pile'; cardIndex: number; cardIds: string[]; pickupTarget?: DiscardPilePickupTarget }
   | { id: string; type: 'put_down_meld'; cardIds: string[] }
   | { id: string; type: 'swap_meld_joker'; meldId: string; jokerCardId: string; replacementCardId: string }
   | { id: string; type: 'discard_card'; cardId: string }
+
+export type DiscardPilePickupTarget =
+  | { type: 'new_meld' }
+  | { type: 'extend_meld'; meldId: string }
+  | { type: 'swap_joker'; meldId: string; jokerCardId: string }
 
 function createClientActionId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -32,12 +37,17 @@ export function createDrawCardAction(): OptimisticGameAction {
   }
 }
 
-export function createPickUpDiscardPileAction(cardIndex: number, cardIds: string[]): OptimisticGameAction {
+export function createPickUpDiscardPileAction(
+  cardIndex: number,
+  cardIds: string[],
+  pickupTarget?: DiscardPilePickupTarget,
+): OptimisticGameAction {
   return {
     id: createClientActionId(),
     type: 'pick_up_discard_pile',
     cardIndex,
     cardIds,
+    pickupTarget,
   }
 }
 
@@ -90,7 +100,7 @@ export function projectOptimisticAction(state: ServerGameState, action: Optimist
     case 'draw_card':
       return projectDrawCard(state, action.placeholderCard)
     case 'pick_up_discard_pile':
-      return projectPickUpDiscardPile(state, action.cardIndex, action.cardIds)
+      return projectPickUpDiscardPile(state, action.cardIndex, action.cardIds, action.pickupTarget)
     case 'put_down_meld':
       return projectPutDownMeld(state, action.cardIds)
     case 'swap_meld_joker':
@@ -129,6 +139,7 @@ function projectPickUpDiscardPile(
   state: ServerGameState,
   cardIndex: number,
   meldCardIds: string[],
+  pickupTarget: DiscardPilePickupTarget = { type: 'new_meld' },
 ): ServerGameState | null {
   if (!isCurrentPlayerPhase(state, 'draw') || !state.discardPile[cardIndex]) {
     return null
@@ -154,19 +165,105 @@ function projectPickUpDiscardPile(
   const chosenHandCards = meldCardIds
     .map((cardId) => currentHand.find((card) => card.id === cardId))
     .filter((card): card is Card => Boolean(card))
+  if (chosenHandCards.length !== meldCardIds.length) {
+    return null
+  }
+
+  const nextHandCards = [
+    ...currentHand.filter((card) => !uniqueMeldCardIds.has(card.id)),
+    ...cardsAddedToHand,
+  ]
+
+  const baseState = {
+    ...state,
+    phase: 'discard' as const,
+    discardPile: state.discardPile.slice(0, cardIndex),
+    players: state.players.map((player) => {
+      if (player.id !== state.youPlayerId || !player.hand) {
+        return player
+      }
+
+      return {
+        ...player,
+        hand: nextHandCards,
+        handCount: nextHandCards.length,
+      }
+    }),
+  }
+
+  if (pickupTarget.type === 'extend_meld') {
+    const targetMeld = state.melds.find((meld) => meld.id === pickupTarget.meldId)
+
+    if (!targetMeld || targetMeld.playerId !== playerId || !canAddCardToMeld(targetMeld, requiredDiscardCard)) {
+      return null
+    }
+
+    const nextMeldCards = [...targetMeld.cards, requiredDiscardCard]
+    const sortedMeldCards = sortMeldCards(nextMeldCards, targetMeld.type)
+
+    return {
+      ...baseState,
+      melds: state.melds.map((meld) => (
+        meld.id === targetMeld.id
+          ? { ...meld, cards: sortedMeldCards, points: calculateMeldPoints(sortedMeldCards, meld.type) }
+          : meld
+      )),
+    }
+  }
+
+  if (pickupTarget.type === 'swap_joker') {
+    const targetMeld = state.melds.find((meld) => meld.id === pickupTarget.meldId)
+    const jokerCard = targetMeld?.cards.find((card) => card.id === pickupTarget.jokerCardId)
+
+    if (!targetMeld || !jokerCard || !isJoker(jokerCard) || isJoker(requiredDiscardCard)) {
+      return null
+    }
+
+    const nextMeldCards = targetMeld.cards.map((card) => (
+      card.id === pickupTarget.jokerCardId ? requiredDiscardCard : card
+    ))
+    const nextMeldType = getMeldType(nextMeldCards)
+
+    if (nextMeldType !== targetMeld.type || !isMeldInCardOrder(nextMeldCards, nextMeldType)) {
+      return null
+    }
+
+    const sortedMeldCards = sortMeldCards(nextMeldCards, nextMeldType)
+
+    return {
+      ...baseState,
+      melds: state.melds.map((meld) => (
+        meld.id === targetMeld.id
+          ? { ...meld, cards: sortedMeldCards, points: calculateMeldPoints(sortedMeldCards, nextMeldType) }
+          : meld
+      )),
+      players: baseState.players.map((player) => {
+        if (player.id !== state.youPlayerId || !player.hand) {
+          return player
+        }
+
+        const hand = [...player.hand, jokerCard]
+
+        return {
+          ...player,
+          hand,
+          handCount: hand.length,
+        }
+      }),
+    }
+  }
+
   const meldCards = [requiredDiscardCard, ...chosenHandCards]
   const meldType = getMeldType(meldCards)
 
-  if (chosenHandCards.length !== meldCardIds.length || !meldType) {
+  if (!meldType) {
     return null
   }
 
   const sortedMeldCards = sortMeldCards(meldCards, meldType)
 
   return {
-    ...state,
-    phase: 'discard' as const,
-    discardPile: state.discardPile.slice(0, cardIndex),
+    ...baseState,
     melds: [
       ...state.melds,
       {
@@ -177,22 +274,6 @@ function projectPickUpDiscardPile(
         points: calculateMeldPoints(sortedMeldCards, meldType),
       },
     ],
-    players: state.players.map((player) => {
-      if (player.id !== state.youPlayerId || !player.hand) {
-        return player
-      }
-
-      const hand = [
-        ...player.hand.filter((card) => !uniqueMeldCardIds.has(card.id)),
-        ...cardsAddedToHand,
-      ]
-
-      return {
-        ...player,
-        hand,
-        handCount: hand.length,
-      }
-    }),
   }
 }
 
@@ -349,9 +430,6 @@ function projectDiscardCard(state: ServerGameState, cardId: string): ServerGameS
   }
 }
 
-function isJoker(card: Card) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
-}
 
 function isCurrentPlayerPhase(
   state: ServerGameState,
@@ -363,4 +441,8 @@ function isCurrentPlayerPhase(
     state.currentPlayerId === state.youPlayerId &&
     state.phase === phase
   )
+}
+
+function isJoker(card: Card) {
+  return card.rank === 'JOKER' || card.suit === 'joker'
 }

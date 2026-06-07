@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
+import { canReplaceMeldJoker } from '../../game/melds'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
 import DiscardPile from './DiscardPile'
@@ -16,10 +17,30 @@ export default function SceneContent(props: SceneContentProps) {
   const tableCardsRef = useRef<Group>(null)
   const [draggedHandCardId, setDraggedHandCardId] = useState<string | null>(null)
   const isDiscardDropTargetHoveredRef = useRef(false)
+  const meldJokerDropTargetRef = useRef<{ meldId: string; jokerCardId: string } | null>(null)
   const puttingDownCardIds = useMemo(
     () => new Set(props.puttingDownCards.map((card) => card.id)),
     [props.puttingDownCards],
   )
+  const draggedSwappableMeldJokerIds = useMemo(() => {
+    const draggedCard = props.hand.find((card) => card.id === draggedHandCardId)
+
+    if (!props.canDiscard || !draggedCard) {
+      return new Set<string>()
+    }
+
+    const swappableJokerIds = new Set<string>()
+
+    for (const meld of props.state?.melds ?? []) {
+      for (const card of meld.cards) {
+        if (canReplaceMeldJoker(meld, card.id, draggedCard)) {
+          swappableJokerIds.add(`${meld.id}:${card.id}`)
+        }
+      }
+    }
+
+    return swappableJokerIds
+  }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds])
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -38,15 +59,23 @@ export default function SceneContent(props: SceneContentProps) {
 
     if (!cardId) {
       isDiscardDropTargetHoveredRef.current = false
+      meldJokerDropTargetRef.current = null
     }
   }
 
   function handleHandCardDragEnd(cardId: string) {
-    if (isDiscardDropTargetHoveredRef.current && props.canDiscard) {
+    if (meldJokerDropTargetRef.current && props.canDiscard) {
+      props.onMeldJokerDrop(
+        meldJokerDropTargetRef.current.meldId,
+        meldJokerDropTargetRef.current.jokerCardId,
+        cardId,
+      )
+    } else if (isDiscardDropTargetHoveredRef.current && props.canDiscard) {
       props.onDiscardHandCard(cardId)
     }
 
     isDiscardDropTargetHoveredRef.current = false
+    meldJokerDropTargetRef.current = null
   }
 
   return (
@@ -79,8 +108,16 @@ export default function SceneContent(props: SceneContentProps) {
         <MeldCards
           state={props.state}
           swappableMeldJokerIds={props.swappableMeldJokerIds}
+          draggedSwappableMeldJokerIds={draggedSwappableMeldJokerIds}
+          discardPileMeldTargetIds={props.discardPileMeldTargetIds}
+          discardPileJokerTargetIds={props.discardPileJokerTargetIds}
           canSwapJoker={props.canDiscard}
           onMeldJokerClick={props.onMeldJokerClick}
+          onMeldJokerDropTargetChange={(dropTarget) => {
+            meldJokerDropTargetRef.current = dropTarget
+          }}
+          onDiscardPileMeldTargetClick={props.onDiscardPileMeldTargetClick}
+          onDiscardPileJokerTargetClick={props.onDiscardPileJokerTargetClick}
         />
       </group>
       <OpponentHand state={props.state} hoveredCardIndexes={props.opponentHoveredHandIndexes} />

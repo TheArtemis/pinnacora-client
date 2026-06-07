@@ -237,3 +237,31 @@ export function isMeldInCardOrder(cards: Card[], type: ServerGameMeld['type']) {
 
   return orderedSequenceAceHigh(cards) !== undefined
 }
+
+export function canReplaceMeldJoker(
+  meld: ServerGameMeld,
+  jokerCardId: string,
+  replacementCard: Card,
+) {
+  if (isJoker(replacementCard)) {
+    return false
+  }
+
+  const jokerCard = meld.cards.find((card) => card.id === jokerCardId)
+
+  if (!jokerCard || !isJoker(jokerCard)) {
+    return false
+  }
+
+  const replacementMeldCards = meld.cards.map((card) => (card.id === jokerCardId ? replacementCard : card))
+  const replacementMeldType = getMeldType(replacementMeldCards)
+
+  return replacementMeldType === meld.type && isMeldInCardOrder(replacementMeldCards, replacementMeldType)
+}
+
+export function canAddCardToMeld(meld: ServerGameMeld, card: Card) {
+  const nextMeldCards = [...meld.cards, card]
+  const nextMeldType = getMeldType(nextMeldCards)
+
+  return nextMeldType === meld.type
+}

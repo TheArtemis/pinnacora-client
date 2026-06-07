@@ -9,11 +9,28 @@ import PointsBurst from './PointsBurst'
 type MeldCardsProps = {
   state: ServerGameState | null
   swappableMeldJokerIds: Set<string>
+  draggedSwappableMeldJokerIds: Set<string>
+  discardPileMeldTargetIds: Set<string>
+  discardPileJokerTargetIds: Set<string>
   canSwapJoker: boolean
   onMeldJokerClick: (meldId: string, jokerCardId: string) => void
+  onMeldJokerDropTargetChange: (dropTarget: { meldId: string; jokerCardId: string } | null) => void
+  onDiscardPileMeldTargetClick: (meldId: string) => void
+  onDiscardPileJokerTargetClick: (meldId: string, jokerCardId: string) => void
 }
 
-export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, onMeldJokerClick }: MeldCardsProps) {
+export default function MeldCards({
+  state,
+  swappableMeldJokerIds,
+  draggedSwappableMeldJokerIds,
+  discardPileMeldTargetIds,
+  discardPileJokerTargetIds,
+  canSwapJoker,
+  onMeldJokerClick,
+  onMeldJokerDropTargetChange,
+  onDiscardPileMeldTargetClick,
+  onDiscardPileJokerTargetClick,
+}: MeldCardsProps) {
   const melds = state?.melds ?? emptyMelds
   const viewerPlayerId = localPlayerId(state)
   const currentMeldCardIds = useMemo(() => melds.flatMap((meld) => meld.cards.map((card) => `${meld.id}-${card.id}`)), [melds])
@@ -115,6 +132,9 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
               const isJoker = card.rank === 'JOKER' || card.suit === 'joker'
               const isClickableJoker = canSwapJoker && isJoker
               const isSwappableJoker = swappableMeldJokerIds.has(swappableMeldJokerId)
+              const isDraggedSwappableJoker = draggedSwappableMeldJokerIds.has(swappableMeldJokerId)
+              const isDiscardPileMeldTarget = discardPileMeldTargetIds.has(meld.id)
+              const isDiscardPileJokerTarget = discardPileJokerTargetIds.has(swappableMeldJokerId)
               const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
 
               return (
@@ -128,20 +148,42 @@ export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, 
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
-                  selected={isSwappableJoker}
-                  hovered={isHoveredJoker}
-                  outlineColor={isSwappableJoker ? '#3f7a54' : undefined}
+                  selected={isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
+                  hovered={isHoveredJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
+                  outlineColor={
+                    isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget
+                      ? '#3f7a54'
+                      : undefined
+                  }
                   fidgetTrigger={fidgetTriggers.get(meldCardId) ?? 0}
                   fidgetFallDelay={visibleMeldCardIds.indexOf(meldCardId) * 0.045}
                   fidgetSideDirection={isLocalMeld ? -1 : 1}
                   onClick={() => {
                     triggerMeldFidget(visibleMeldCardIds)
-                    if (isClickableJoker) {
+                    if (isDiscardPileJokerTarget) {
+                      onDiscardPileJokerTargetClick(meld.id, card.id)
+                    } else if (isDiscardPileMeldTarget) {
+                      onDiscardPileMeldTargetClick(meld.id)
+                    } else if (isClickableJoker) {
                       onMeldJokerClick(meld.id, card.id)
                     }
                   }}
-                  onPointerOver={isClickableJoker ? () => setHoveredMeldJokerId(swappableMeldJokerId) : undefined}
-                  onPointerOut={isClickableJoker ? () => setHoveredMeldJokerId(null) : undefined}
+                  onPointerOver={isClickableJoker || isDraggedSwappableJoker ? () => {
+                    if (isClickableJoker) {
+                      setHoveredMeldJokerId(swappableMeldJokerId)
+                    }
+                    if (isDraggedSwappableJoker) {
+                      onMeldJokerDropTargetChange({ meldId: meld.id, jokerCardId: card.id })
+                    }
+                  } : undefined}
+                  onPointerOut={isClickableJoker || isDraggedSwappableJoker ? () => {
+                    if (isClickableJoker) {
+                      setHoveredMeldJokerId(null)
+                    }
+                    if (isDraggedSwappableJoker) {
+                      onMeldJokerDropTargetChange(null)
+                    }
+                  } : undefined}
                 />
               )
             })}
