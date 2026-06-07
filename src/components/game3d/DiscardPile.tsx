@@ -51,6 +51,10 @@ export default function DiscardPile({
       {cards.map((card, index) => {
         const selected = discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex
         const offset = index
+        const isTopCard = index === cards.length - 1
+        const visibleOverlap = Math.max(0, CARD_WIDTH - cardSpread)
+        const interactionWidth = isTopCard ? CARD_WIDTH : cardSpread
+        const interactionOffsetX = isTopCard ? 0 : -visibleOverlap / 2
         const animateFrom: [number, number, number] | undefined = enteringDiscardCardIds.has(card.id)
           ? [0, 2.05, localHandBaseZ]
           : undefined
@@ -69,6 +73,8 @@ export default function DiscardPile({
             onClick={canPickUpDiscardPile ? () => onDiscardPileCardClick(index) : canDiscard ? onDiscardSelectedCard : undefined}
             onPointerOver={canPickUpDiscardPile ? () => onDiscardPileCardHover(index) : undefined}
             onPointerOut={canPickUpDiscardPile ? () => onDiscardPileCardHover(null) : undefined}
+            interactionWidth={interactionWidth}
+            interactionOffsetX={interactionOffsetX}
           />
         )
       })}

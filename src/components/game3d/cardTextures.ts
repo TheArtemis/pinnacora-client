@@ -83,8 +83,8 @@ export function getCardBackTexture() {
   })
 }
 
-export function getCardFaceTexture(card: CardType) {
-  return createTexture(`face-${card.id}`, (context, width, height) => {
+export function getCardFaceTexture(card: CardType, borderColor?: string) {
+  return createTexture(`face-${card.id}-${borderColor ?? 'default-border'}`, (context, width, height) => {
     const isRed = card.suit === 'diamonds' || card.suit === 'hearts'
     const color = isRed ? '#b3263a' : '#172033'
     const cornerSuitFont = card.suit === 'joker' ? '800 34px Inter, Arial, sans-serif' : '800 58px Georgia, serif'
@@ -93,8 +93,8 @@ export function getCardFaceTexture(card: CardType) {
     roundedRect(context, 8, 8, width - 16, height - 16, 44)
     context.fill()
 
-    context.strokeStyle = 'rgba(8, 6, 13, 0.14)'
-    context.lineWidth = 8
+    context.strokeStyle = borderColor ?? 'rgba(8, 6, 13, 0.14)'
+    context.lineWidth = borderColor ? 18 : 8
     roundedRect(context, 14, 14, width - 28, height - 28, 40)
     context.stroke()
 

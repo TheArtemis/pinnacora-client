@@ -8,10 +8,9 @@ export default function GameTableScene(props: GameTableSceneProps) {
   const viewerPlayerId = localPlayerId(props.state)
   const opponent = props.state?.players.find((player) => player.id !== viewerPlayerId)
   const [isLowerCanvasFocused, setIsLowerCanvasFocused] = useState(false)
-  const [isMiddleCanvasFocused, setIsMiddleCanvasFocused] = useState(false)
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
   const isLocalHandFocused = isLowerCanvasFocused || isHandAreaFocused
-  const isMiddleTableFocused = isMiddleCanvasFocused && !isLocalHandFocused
+  const isMiddleTableFocused = false
   const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
 
   function handleScenePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -20,7 +19,6 @@ export default function GameTableScene(props: GameTableSceneProps) {
     const isInLowerCanvas = pointerY > bounds.height * 0.62
 
     setIsLowerCanvasFocused(isInLowerCanvas)
-    setIsMiddleCanvasFocused(pointerY > bounds.height * 0.28 && !isInLowerCanvas)
   }
 
   return (
@@ -29,7 +27,6 @@ export default function GameTableScene(props: GameTableSceneProps) {
       onPointerMove={handleScenePointerMove}
       onPointerLeave={() => {
         setIsLowerCanvasFocused(false)
-        setIsMiddleCanvasFocused(false)
         setIsHandAreaFocused(false)
       }}
     >
