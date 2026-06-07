@@ -19,6 +19,7 @@ type CardMeshProps = {
   scale?: number
   renderOrder?: number
   layerOnTop?: boolean
+  outlineColor?: string
   onClick?: () => void
   onPointerOver?: () => void
   onPointerOut?: () => void
@@ -36,6 +37,7 @@ export default function CardMesh({
   scale = 1,
   renderOrder = 0,
   layerOnTop = false,
+  outlineColor,
   onClick,
   onPointerOver,
   onPointerOut,
@@ -47,6 +49,9 @@ export default function CardMesh({
   const texture = hidden || !card ? getCardBackTexture() : getCardFaceTexture(card)
   const lift = selected ? (hovered ? 0.22 : 0.12) : hovered ? 0.18 : 0
   const animateFromKey = animateFrom?.join(',') ?? ''
+  const resolvedOutlineColor = selected ? outlineColor : undefined
+  const highlightColor = resolvedOutlineColor ?? '#f4ab35'
+  const outlineThickness = 0.08
 
   useEffect(() => {
     if (!meshRef.current || !animateFromKey) {
@@ -113,13 +118,33 @@ export default function CardMesh({
         side={DoubleSide}
         roughness={0.62}
         metalness={0.02}
-        emissive={selected || hovered ? '#f4ab35' : '#000000'}
+        emissive={selected || hovered ? highlightColor : '#000000'}
         emissiveIntensity={selected || hovered ? 0.18 : 0}
         transparent
         alphaTest={0.04}
         depthTest={!layerOnTop}
         depthWrite={!layerOnTop}
       />
+      {resolvedOutlineColor ? (
+        <>
+          <mesh position={[0, CARD_HEIGHT / 2 + outlineThickness / 2, 0.018]}>
+            <planeGeometry args={[CARD_WIDTH + outlineThickness * 2, outlineThickness]} />
+            <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
+          </mesh>
+          <mesh position={[0, -CARD_HEIGHT / 2 - outlineThickness / 2, 0.018]}>
+            <planeGeometry args={[CARD_WIDTH + outlineThickness * 2, outlineThickness]} />
+            <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
+          </mesh>
+          <mesh position={[-CARD_WIDTH / 2 - outlineThickness / 2, 0, 0.018]}>
+            <planeGeometry args={[outlineThickness, CARD_HEIGHT]} />
+            <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
+          </mesh>
+          <mesh position={[CARD_WIDTH / 2 + outlineThickness / 2, 0, 0.018]}>
+            <planeGeometry args={[outlineThickness, CARD_HEIGHT]} />
+            <meshBasicMaterial color={resolvedOutlineColor} side={DoubleSide} depthTest={!layerOnTop} />
+          </mesh>
+        </>
+      ) : null}
     </mesh>
   )
 }

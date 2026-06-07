@@ -8,3 +8,4 @@ export const deckPosition = {
 }
 
 export const localHandBaseZ = 8
+export const tableCardBaseY = 0.14

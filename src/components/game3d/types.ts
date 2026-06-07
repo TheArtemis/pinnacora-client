@@ -9,6 +9,7 @@ export type GameTableSceneProps = {
   puttingDownCards: CardType[]
   isHandGatheringForSort: boolean
   selectedCardIds: Set<string>
+  selectedCardOutlineColor?: string
   opponentHoveredHandIndexes: Set<number>
   discardPileHighlightStartIndex: number | null
   tableHint: string

@@ -11,6 +11,7 @@ type LocalHandProps = Pick<GameTableSceneProps, 'selectedCardIds' | 'onHandCardC
   cards: CardType[]
   puttingDownCardIds: Set<string>
   isGatheringForSort: boolean
+  selectedCardOutlineColor?: string
   onHandAreaFocusChange: (isFocused: boolean) => void
 }
 
@@ -19,6 +20,7 @@ export default function LocalHand({
   selectedCardIds,
   puttingDownCardIds,
   isGatheringForSort,
+  selectedCardOutlineColor,
   onHandAreaFocusChange,
   onHandCardClick,
   onHandCardHover,
@@ -96,6 +98,7 @@ export default function LocalHand({
             renderOrder={index}
             layerOnTop
             selected={selectedCardIds.has(card.id)}
+            outlineColor={selectedCardOutlineColor}
             hovered={hoveredCardIndex === index}
             opacity={isPuttingDown ? 0 : 1}
             scale={isPuttingDown ? 0.62 : 1}

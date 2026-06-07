@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Mesh } from 'three'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
-import { deckPosition } from './constants'
+import { deckPosition, tableCardBaseY } from './constants'
 
 type DeckPileProps = {
   deckCount: number
@@ -15,7 +15,7 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
 
   if (deckCount === 0) {
     return (
-      <mesh position={[deckPosition.x, 0.055, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[deckPosition.x, tableCardBaseY - 0.015, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
         <meshStandardMaterial color="#ffffff" transparent opacity={0.18} />
       </mesh>
@@ -28,7 +28,7 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
         <CardMesh
           hidden
           key={`deck-${index}`}
-          position={[deckPosition.x, 0.07 + index * 0.024, deckPosition.z - index * 0.012]}
+          position={[deckPosition.x, tableCardBaseY + index * 0.024, deckPosition.z - index * 0.012]}
           rotation={[-Math.PI / 2, 0, 0.04]}
           onClick={canDraw ? onDrawCard : undefined}
         />

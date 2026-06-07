@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
-import { emptyMelds, localHandBaseZ } from './constants'
+import { emptyMelds, localHandBaseZ, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
 
 type MeldCardsProps = {
@@ -65,22 +65,16 @@ export default function MeldCards({ state }: MeldCardsProps) {
         const column = ownerMeldIndex % maxColumnsPerRow
         const columnsInRow = Math.min(maxColumnsPerRow, ownerMeldCount - row * maxColumnsPerRow)
         const startX = (column - (columnsInRow - 1) / 2) * 2.96
-        const startZ = isLocalMeld ? 3.96 - row * 3.64 : -3.96 + row * 3.64
-        const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -5.56]
-        const visibleCards =
-          meld.type === 'sequence' && meld.cards.length > 2
-            ? [
-              { card: meld.cards[0], originalIndex: 0 },
-              { card: meld.cards[meld.cards.length - 1], originalIndex: meld.cards.length - 1 },
-            ]
-            : meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
+        const startZ = isLocalMeld ? 5.58 - row * 3.12 : -5.58 + row * 3.12
+        const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -6.15]
+        const visibleCards = meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
 
         return (
           <group key={meld.id}>
             {visibleCards.map(({ card, originalIndex }, visibleCardIndex) => {
               const meldCardId = `${meld.id}-${card.id}`
               const shouldMaterialize = materializingMeldCardIds.has(meldCardId)
-              const cardSpacing = meld.type === 'sequence' ? CARD_HEIGHT * 0.72 : CARD_HEIGHT * 0.42
+              const cardSpacing = meld.type === 'sequence' ? CARD_HEIGHT * 0.5 : CARD_HEIGHT * 0.42
               const zDirection = isLocalMeld ? -1 : 1
 
               return (
@@ -89,7 +83,7 @@ export default function MeldCards({ state }: MeldCardsProps) {
                   key={meldCardId}
                   position={[
                     startX,
-                    0.075 + originalIndex * 0.004,
+                    tableCardBaseY + originalIndex * 0.006,
                     startZ + visibleCardIndex * cardSpacing * zDirection,
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}

@@ -9,6 +9,8 @@ import { useAuth } from '../auth/useAuth'
 
 type HandSortMode = 'suit' | 'value'
 
+const cardSelectSoundPath = '/sounds/card-select.mp3'
+
 const suitOrder: Record<CardType['suit'], number> = {
   spades: 0,
   hearts: 1,
@@ -161,6 +163,7 @@ export default function Game() {
   const [isHandGatheringForSort, setIsHandGatheringForSort] = useState(false)
   const puttingDownAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const handSortAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const cardSelectSoundRef = useRef<HTMLAudioElement | null>(null)
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -176,6 +179,10 @@ export default function Game() {
       .map((cardId) => hand.find((card) => card.id === cardId))
       .filter((card): card is CardType => Boolean(card))
   }, [hand, selectedMeldCardIds])
+  const selectedMeldError = useMemo(
+    () => (selectedMeldCards.length > 0 ? validateMeld(selectedMeldCards) : ''),
+    [selectedMeldCards],
+  )
   const sortedHand = useMemo(() => {
     return hand
       .map((card, index) => ({ card, index }))
@@ -227,6 +234,10 @@ export default function Game() {
     canPickUpDiscardPile && discardPileCombinationCard
       ? validateMeld([discardPileCombinationCard, ...selectedMeldCards])
       : ''
+  const isSelectedCombinationValid =
+    selectedMeldCards.length > 0 && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
+  const selectedCardOutlineColor =
+    selectedMeldCards.length > 0 ? (isSelectedCombinationValid ? '#31d46b' : '#ef4444') : undefined
   const discardPilePickupCombination = discardPileCombinationCard
     ? [discardPileCombinationCard, ...selectedMeldCards]
     : selectedMeldCards
@@ -412,17 +423,28 @@ export default function Game() {
     handleDiscardCard(selectedMeldCardIds[0])
   }
 
+  function playCardSelectSound() {
+    const sound = cardSelectSoundRef.current ?? new Audio(cardSelectSoundPath)
+    cardSelectSoundRef.current = sound
+    sound.currentTime = 0
+
+    void sound.play().catch(() => undefined)
+  }
+
   function handleToggleMeldCard(card: CardType) {
     if (!canSelectMeldCards) {
       return
     }
 
     setGameError('')
-    setSelectedMeldCardIds((currentCardIds) =>
-      currentCardIds.includes(card.id)
-        ? currentCardIds.filter((cardId) => cardId !== card.id)
-        : [...currentCardIds, card.id],
-    )
+    setSelectedMeldCardIds((currentCardIds) => {
+      if (currentCardIds.includes(card.id)) {
+        return currentCardIds.filter((cardId) => cardId !== card.id)
+      }
+
+      playCardSelectSound()
+      return [...currentCardIds, card.id]
+    })
   }
 
   const handleHandCardHover = useCallback((cardIndexes: number[]) => {
@@ -547,6 +569,7 @@ export default function Game() {
           puttingDownCards={puttingDownCards}
           isHandGatheringForSort={isHandGatheringForSort}
           selectedCardIds={sceneSelectedCardIds}
+          selectedCardOutlineColor={selectedCardOutlineColor}
           opponentHoveredHandIndexes={opponentHoveredHandIndexes}
           discardPileHighlightStartIndex={discardPileHighlightStartIndex}
           tableHint={tableHint}
@@ -555,7 +578,7 @@ export default function Game() {
           canDiscard={canDiscard}
           canPickUpDiscardPile={canPickUpDiscardPile}
           canPutDownMeld={canPutDownMeld}
-          canPutDownSelectedMeld={selectedMeldCardIds.length > 0}
+          canPutDownSelectedMeld={selectedMeldCards.length > 0 && !selectedMeldError}
           onDrawCard={handleDrawCard}
           onHandCardClick={handleToggleMeldCard}
           onHandCardHover={handleHandCardHover}
