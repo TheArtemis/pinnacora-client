@@ -29,4 +29,5 @@ export type ServerGameState = {
   melds: ServerGameMeld[]
   currentPlayerId?: string
   youPlayerId?: string
+  winnerId?: string
 }

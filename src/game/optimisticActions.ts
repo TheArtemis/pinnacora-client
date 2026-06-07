@@ -110,6 +110,38 @@ export function projectOptimisticAction(state: ServerGameState, action: Optimist
   }
 }
 
+function hasPinnacora(state: ServerGameState, playerId: string) {
+  return state.melds.some((meld) => (
+    meld.playerId === playerId &&
+    meld.type === 'sequence' &&
+    meld.cards.length >= 7
+  ))
+}
+
+function hasFullPoker(state: ServerGameState, playerId: string) {
+  return state.melds.some((meld) => (
+    meld.playerId === playerId &&
+    meld.type === 'set' &&
+    meld.cards.length >= 4
+  ))
+}
+
+function maybeFinishGame(state: ServerGameState, playerId: string): ServerGameState {
+  const player = state.players.find((candidatePlayer) => candidatePlayer.id === playerId)
+
+  if (!player || player.handCount > 0 || !hasPinnacora(state, playerId) || !hasFullPoker(state, playerId)) {
+    return state
+  }
+
+  return {
+    ...state,
+    status: 'finished',
+    phase: 'finished',
+    currentPlayerId: undefined,
+    winnerId: playerId,
+  }
+}
+
 function projectDrawCard(state: ServerGameState, drawCard: Card): ServerGameState | null {
   if (!isCurrentPlayerPhase(state, 'draw') || state.deckCount <= 0) {
     return null
@@ -201,14 +233,14 @@ function projectPickUpDiscardPile(
     const nextMeldCards = [...targetMeld.cards, requiredDiscardCard]
     const sortedMeldCards = sortMeldCards(nextMeldCards, targetMeld.type)
 
-    return {
+    return maybeFinishGame({
       ...baseState,
       melds: state.melds.map((meld) => (
         meld.id === targetMeld.id
           ? { ...meld, cards: sortedMeldCards, points: calculateMeldPoints(sortedMeldCards, meld.type) }
           : meld
       )),
-    }
+    }, playerId)
   }
 
   if (pickupTarget.type === 'swap_joker') {
@@ -230,7 +262,7 @@ function projectPickUpDiscardPile(
 
     const sortedMeldCards = sortMeldCards(nextMeldCards, nextMeldType)
 
-    return {
+    return maybeFinishGame({
       ...baseState,
       melds: state.melds.map((meld) => (
         meld.id === targetMeld.id
@@ -250,7 +282,7 @@ function projectPickUpDiscardPile(
           handCount: hand.length,
         }
       }),
-    }
+    }, playerId)
   }
 
   const meldCards = [requiredDiscardCard, ...chosenHandCards]
@@ -262,7 +294,7 @@ function projectPickUpDiscardPile(
 
   const sortedMeldCards = sortMeldCards(meldCards, meldType)
 
-  return {
+  return maybeFinishGame({
     ...baseState,
     melds: [
       ...state.melds,
@@ -274,7 +306,7 @@ function projectPickUpDiscardPile(
         points: calculateMeldPoints(sortedMeldCards, meldType),
       },
     ],
-  }
+  }, playerId)
 }
 
 function projectPutDownMeld(state: ServerGameState, cardIds: string[]): ServerGameState | null {
@@ -307,7 +339,7 @@ function projectPutDownMeld(state: ServerGameState, cardIds: string[]): ServerGa
 
   const sortedMeldCards = sortMeldCards(chosenCards, meldType)
 
-  return {
+  return maybeFinishGame({
     ...state,
     melds: [
       ...state.melds,
@@ -332,7 +364,7 @@ function projectPutDownMeld(state: ServerGameState, cardIds: string[]): ServerGa
         handCount: hand.length,
       }
     }),
-  }
+  }, playerId)
 }
 
 function projectSwapMeldJoker(
@@ -363,7 +395,7 @@ function projectSwapMeldJoker(
 
   const sortedMeldCards = sortMeldCards(nextMeldCards, nextMeldType)
 
-  return {
+  return maybeFinishGame({
     ...state,
     melds: state.melds.map((candidateMeld) => {
       if (candidateMeld.id !== meldId) {
@@ -392,7 +424,7 @@ function projectSwapMeldJoker(
         handCount: hand.length,
       }
     }),
-  }
+  }, state.youPlayerId)
 }
 
 function projectDiscardCard(state: ServerGameState, cardId: string): ServerGameState | null {
@@ -409,7 +441,7 @@ function projectDiscardCard(state: ServerGameState, cardId: string): ServerGameS
     return null
   }
 
-  return {
+  return maybeFinishGame({
     ...state,
     phase: 'draw' as const,
     currentPlayerId: nextPlayer.id,
@@ -427,7 +459,7 @@ function projectDiscardCard(state: ServerGameState, cardId: string): ServerGameS
         handCount: hand.length,
       }
     }),
-  }
+  }, state.youPlayerId)
 }
 
 

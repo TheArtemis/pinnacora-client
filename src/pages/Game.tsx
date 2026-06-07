@@ -66,7 +66,10 @@ function statusText(state: ServerGameState | null) {
   }
 
   if (state.status === 'finished') {
-    return 'Game finished.'
+    const winner = state.players.find((player) => player.id === state.winnerId)
+    const winnerName = winner?.id === state.youPlayerId ? 'You' : winner?.name
+
+    return winnerName ? `${winnerName} won the game.` : 'Game finished.'
   }
 
   const currentPlayer = state.players.find((player) => player.id === state.currentPlayerId)
