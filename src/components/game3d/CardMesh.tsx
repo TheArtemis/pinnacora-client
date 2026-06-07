@@ -21,6 +21,7 @@ type CardMeshProps = {
   renderOrder?: number
   layerOnTop?: boolean
   snapToPosition?: boolean
+  disableLift?: boolean
   outlineColor?: string
   interactionWidth?: number
   interactionOffsetX?: number
@@ -43,6 +44,7 @@ export default function CardMesh({
   renderOrder = 0,
   layerOnTop = false,
   snapToPosition = false,
+  disableLift = false,
   outlineColor,
   interactionWidth = CARD_WIDTH,
   interactionOffsetX = 0,
@@ -56,7 +58,7 @@ export default function CardMesh({
   const materialRef = useRef<MeshStandardMaterial>(null)
   const selectedBorderColor = selected ? outlineColor ?? '#f4ab35' : undefined
   const texture = hidden || !card ? getCardBackTexture() : getCardFaceTexture(card, selectedBorderColor)
-  const lift = selected ? (hovered ? 0.22 : 0.12) : hovered ? 0.18 : 0
+  const lift = disableLift ? 0 : selected ? (hovered ? 0.22 : 0.12) : hovered ? 0.18 : 0
   const animateFromKey = animateFrom?.join(',') ?? ''
   const highlightColor = selectedBorderColor ?? '#f4ab35'
   const hasInteraction = Boolean(onClick || onPointerOver || onPointerOut)
@@ -81,9 +83,14 @@ export default function CardMesh({
     }
 
     if (snapToPosition) {
-      groupRef.current.position.set(position[0], position[1] + lift, position[2])
-      groupRef.current.rotation.set(rotation[0], rotation[1], rotation[2])
-      groupRef.current.scale.setScalar(scale)
+      groupRef.current.position.x = position[0]
+      groupRef.current.position.y = MathUtils.damp(groupRef.current.position.y, position[1] + lift, 18, delta)
+      groupRef.current.position.z = position[2]
+      groupRef.current.rotation.x = MathUtils.damp(groupRef.current.rotation.x, rotation[0], 12, delta)
+      groupRef.current.rotation.y = MathUtils.damp(groupRef.current.rotation.y, rotation[1], 12, delta)
+      groupRef.current.rotation.z = MathUtils.damp(groupRef.current.rotation.z, rotation[2], 12, delta)
+      const nextScale = MathUtils.damp(groupRef.current.scale.x, scale, 10, delta)
+      groupRef.current.scale.setScalar(nextScale)
     } else {
       groupRef.current.position.x = MathUtils.damp(groupRef.current.position.x, position[0], 10, delta)
       groupRef.current.position.y = MathUtils.damp(groupRef.current.position.y, position[1] + lift, 18, delta)

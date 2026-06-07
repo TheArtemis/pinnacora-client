@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react'
-import type { ThreeEvent } from '@react-three/fiber'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { localHandBaseZ, tableCardBaseY } from './constants'
 import type { GameTableSceneProps } from './types'
+
+const DISCARD_AREA_WIDTH = 8.8
+const DISCARD_AREA_DEPTH = CARD_HEIGHT * 1.34
+const DISCARD_AREA_X = 0
+const DISCARD_AREA_Z = -0.62
 
 type DiscardPileProps = Pick<
   GameTableSceneProps,
@@ -12,11 +16,11 @@ type DiscardPileProps = Pick<
   | 'discardPileHighlightStartIndex'
   | 'onDiscardPileCardClick'
   | 'onDiscardPileCardHover'
-  | 'onDiscardHandCard'
   | 'onDiscardSelectedCard'
 > & {
   cards: CardType[]
   draggedHandCardId: string | null
+  onDiscardDropTargetChange: (isHovered: boolean) => void
 }
 
 export default function DiscardPile({
@@ -27,7 +31,7 @@ export default function DiscardPile({
   onDiscardPileCardClick,
   onDiscardPileCardHover,
   draggedHandCardId,
-  onDiscardHandCard,
+  onDiscardDropTargetChange,
   onDiscardSelectedCard,
 }: DiscardPileProps) {
   const hasSeenInitialDiscardRef = useRef(false)
@@ -35,36 +39,26 @@ export default function DiscardPile({
   const enteringDiscardCardIds = hasSeenInitialDiscardRef.current
     ? new Set(cards.filter((card) => !seenDiscardCardIdsRef.current.has(card.id)).map((card) => card.id))
     : new Set<string>()
-  const cardSpread = Math.max(0.28, Math.min(0.48, 8.4 / Math.max(cards.length - 1, 1)))
+  const cardSpread = Math.max(0.28, Math.min(0.5, (DISCARD_AREA_WIDTH - CARD_WIDTH) / Math.max(cards.length - 1, 1)))
   const discardCardY = tableCardBaseY + 0.018
   const canDropDraggedCard = canDiscard && Boolean(draggedHandCardId)
-  const dropTargetWidth = Math.max(CARD_WIDTH * 1.35, CARD_WIDTH + Math.max(cards.length - 1, 0) * cardSpread)
-  const dropTargetX = -2.36 + (Math.max(cards.length - 1, 0) * cardSpread) / 2
-  const dropTargetZ = -0.4 - (Math.max(cards.length - 1, 0) * 0.09) / 2
+  const firstCardX = DISCARD_AREA_X - (Math.max(cards.length - 1, 0) * cardSpread) / 2
 
   useEffect(() => {
     seenDiscardCardIdsRef.current = new Set(cards.map((card) => card.id))
     hasSeenInitialDiscardRef.current = true
   }, [cards])
 
-  function handleDraggedCardDrop(event: ThreeEvent<PointerEvent>) {
-    event.stopPropagation()
-
-    if (!draggedHandCardId || !canDiscard) {
-      return
-    }
-
-    onDiscardHandCard(draggedHandCardId)
-  }
-
   return (
     <group>
       <mesh
-        position={[-2.36, tableCardBaseY - 0.015, -0.4]}
+        position={[DISCARD_AREA_X, tableCardBaseY - 0.015, DISCARD_AREA_Z]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={canDiscard && !canDropDraggedCard ? onDiscardSelectedCard : undefined}
+        onPointerOver={canDropDraggedCard ? () => onDiscardDropTargetChange(true) : undefined}
+        onPointerOut={canDropDraggedCard ? () => onDiscardDropTargetChange(false) : undefined}
       >
-        <planeGeometry args={[CARD_WIDTH * 1.35, CARD_HEIGHT * 1.24]} />
+        <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
         <meshStandardMaterial color={canDropDraggedCard ? '#f4ab35' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.34 : canDiscard ? 0.22 : 0.1} />
       </mesh>
       {cards.map((card, index) => {
@@ -82,7 +76,7 @@ export default function DiscardPile({
           <CardMesh
             card={card}
             key={card.id}
-            position={[-2.36 + offset * cardSpread, discardCardY, -0.4 - offset * 0.09]}
+            position={[firstCardX + offset * cardSpread, discardCardY, DISCARD_AREA_Z - offset * 0.045]}
             rotation={[-Math.PI / 2, 0, -0.08]}
             animateFrom={animateFrom}
             animateRotationFrom={animateFrom ? [-0.72, 0, 0] : undefined}
@@ -99,12 +93,13 @@ export default function DiscardPile({
       })}
       {canDropDraggedCard ? (
         <mesh
-          position={[dropTargetX, discardCardY + 0.12, dropTargetZ]}
+          position={[DISCARD_AREA_X, discardCardY + 0.12, DISCARD_AREA_Z]}
           rotation={[-Math.PI / 2, 0, 0]}
-          onPointerUp={handleDraggedCardDrop}
+          onPointerOver={() => onDiscardDropTargetChange(true)}
+          onPointerOut={() => onDiscardDropTargetChange(false)}
           renderOrder={180}
         >
-          <planeGeometry args={[dropTargetWidth, CARD_HEIGHT * 1.35]} />
+          <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       ) : null}
