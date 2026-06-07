@@ -81,7 +81,7 @@ export default function DiscardPile({
           <CardMesh
             card={card}
             key={card.id}
-            position={[firstCardX + offset * cardSpread, discardCardY, DISCARD_AREA_Z - offset * 0.045]}
+            position={[firstCardX + offset * cardSpread, discardCardY, DISCARD_AREA_Z]}
             rotation={[-Math.PI / 2, 0, -0.08]}
             animateFrom={animateFrom}
             animateRotationFrom={animateFrom ? [-0.72, 0, 0] : undefined}

@@ -3,7 +3,7 @@ import type { ServerGameState } from '../../game/serverTypes'
 export const emptyMelds: ServerGameState['melds'] = []
 
 export const deckPosition = {
-  x: -4.7,
+  x: -6.2,
   z: -0.4,
 }
 
