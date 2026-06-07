@@ -76,7 +76,12 @@ export default function SceneContent(props: SceneContentProps) {
           }}
           onDiscardSelectedCard={props.onDiscardSelectedCard}
         />
-        <MeldCards state={props.state} />
+        <MeldCards
+          state={props.state}
+          swappableMeldJokerIds={props.swappableMeldJokerIds}
+          canSwapJoker={props.canDiscard}
+          onMeldJokerClick={props.onMeldJokerClick}
+        />
       </group>
       <OpponentHand state={props.state} hoveredCardIndexes={props.opponentHoveredHandIndexes} />
       <LocalHand

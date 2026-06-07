@@ -9,6 +9,7 @@ import {
   createDrawCardAction,
   createPickUpDiscardPileAction,
   createPutDownMeldAction,
+  createSwapMeldJokerAction,
   hiddenCardIdsForOptimisticActions,
   projectOptimisticAction,
   projectOptimisticActions,
@@ -104,6 +105,30 @@ function resolveHandOrder(currentOrderIds: string[], cards: CardType[], fallback
   return [...baseIds, ...newIds]
 }
 
+function isJokerCard(card: CardType) {
+  return card.rank === 'JOKER' || card.suit === 'joker'
+}
+
+function canReplaceMeldJoker(
+  meld: ServerGameState['melds'][number],
+  jokerCardId: string,
+  replacementCard: CardType,
+) {
+  if (isJokerCard(replacementCard)) {
+    return false
+  }
+
+  const jokerCard = meld.cards.find((card) => card.id === jokerCardId)
+
+  if (!jokerCard || !isJokerCard(jokerCard)) {
+    return false
+  }
+
+  const replacementMeldCards = meld.cards.map((card) => (card.id === jokerCardId ? replacementCard : card))
+
+  return getMeldType(replacementMeldCards) === meld.type
+}
+
 export default function Game() {
   const navigate = useNavigate()
   const { gameId = '' } = useParams()
@@ -148,6 +173,24 @@ export default function Game() {
       .map((cardId) => hand.find((card) => card.id === cardId))
       .filter((card): card is CardType => Boolean(card))
   }, [hand, selectedMeldCardIds])
+  const selectedJokerSwapReplacementCard = selectedMeldCards.length === 1 ? selectedMeldCards[0] : undefined
+  const swappableMeldJokerIds = useMemo(() => {
+    if (!canDiscard || !selectedJokerSwapReplacementCard) {
+      return new Set<string>()
+    }
+
+    const meldJokerIds = new Set<string>()
+
+    for (const meld of serverState?.melds ?? []) {
+      for (const card of meld.cards) {
+        if (canReplaceMeldJoker(meld, card.id, selectedJokerSwapReplacementCard)) {
+          meldJokerIds.add(`${meld.id}:${card.id}`)
+        }
+      }
+    }
+
+    return meldJokerIds
+  }, [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds])
   const selectedMeldError = useMemo(
     () => (selectedMeldCards.length > 0 ? validateMeld(selectedMeldCards) : ''),
     [selectedMeldCards],
@@ -197,10 +240,17 @@ export default function Game() {
       : ''
   const selectedMeldType = selectedMeldError ? undefined : getMeldType(selectedMeldCards)
   const selectedMeldPoints = selectedMeldType ? calculateMeldPoints(selectedMeldCards, selectedMeldType) : 0
+  const hasEnoughSelectedCombinationCards = discardPileCombinationCard
+    ? selectedMeldCards.length > 0
+    : selectedMeldCards.length >= 3
   const isSelectedCombinationValid =
-    selectedMeldCards.length > 0 && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
+    hasEnoughSelectedCombinationCards && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
   const selectedCardOutlineColor =
-    selectedMeldCards.length > 0 ? (isSelectedCombinationValid ? '#3f7a54' : '#8f3d36') : undefined
+    selectedMeldCards.length === 1
+      ? (swappableMeldJokerIds.size > 0 ? '#3f7a54' : undefined)
+      : selectedMeldCards.length > 0
+        ? (isSelectedCombinationValid ? '#3f7a54' : '#8f3d36')
+        : undefined
   const discardPilePickupCombination = discardPileCombinationCard
     ? [discardPileCombinationCard, ...selectedMeldCards]
     : selectedMeldCards
@@ -242,13 +292,25 @@ export default function Game() {
     }
 
     if (canDiscard) {
+      if (selectedJokerSwapReplacementCard) {
+        if (isJokerCard(selectedJokerSwapReplacementCard)) {
+          return 'Selected joker can be discarded. Select a non-joker card to replace a table joker.'
+        }
+
+        if (swappableMeldJokerIds.size > 0) {
+          return 'Click a highlighted table joker to swap it, click the discard pile to discard, or select more cards for a combination.'
+        }
+
+        return 'Selected card can be discarded. It cannot replace any table joker right now.'
+      }
+
       if (selectedMeldCards.length > 0) {
         return selectedMeldError
           ? `Combination not ready: ${selectedMeldError}`
           : `Selected combination is worth ${selectedMeldPoints} points.`
       }
 
-      return 'Select one hand card and click the discard pile to discard, or select three or more cards to put down a combination.'
+      return 'Select one hand card to discard or swap for a table joker, or select three or more cards to put down a combination.'
     }
 
     return statusText(serverState)
@@ -262,9 +324,11 @@ export default function Game() {
     discardPilePickupError,
     discardPilePickupPoints,
     serverState,
+    selectedJokerSwapReplacementCard,
     selectedMeldCards.length,
     selectedMeldError,
     selectedMeldPoints,
+    swappableMeldJokerIds.size,
   ])
 
   function setPendingActions(actions: OptimisticGameAction[]) {
@@ -467,6 +531,49 @@ export default function Game() {
     handleDiscardCard(selectedMeldCardIds[0])
   }
 
+  function handleSwapMeldJoker(meldId: string, jokerCardId: string) {
+    if (!canDiscard) {
+      return
+    }
+
+    if (selectedMeldCardIds.length !== 1) {
+      setGameError('Select exactly one non-joker card from your hand, then click a table joker.')
+      return
+    }
+
+    const replacementCardId = selectedMeldCardIds[0]
+    const replacementCard = hand.find((card) => card.id === replacementCardId)
+    const meld = serverState?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+    if (!replacementCard || isJokerCard(replacementCard)) {
+      setGameError('Use a non-joker card from your hand to replace a table joker.')
+      return
+    }
+
+    if (!meld || !canReplaceMeldJoker(meld, jokerCardId, replacementCard)) {
+      setGameError('That card cannot replace this joker while keeping the combination valid.')
+      return
+    }
+
+    setGameError('')
+    setSelectedDiscardPileStartIndex(null)
+    const action = createSwapMeldJokerAction(meldId, jokerCardId, replacementCardId)
+
+    if (!applyOptimisticAction(action)) {
+      setGameError('That joker swap is not available right now.')
+      return
+    }
+
+    setSelectedCardId(null)
+    setSelectedMeldCardIds([])
+    socket.emit('swap_meld_joker', {
+      clientActionId: action.id,
+      meldId,
+      jokerCardId,
+      replacementCardId,
+    })
+  }
+
   function playCardSelectSound() {
     const sound = cardSelectSoundRef.current ?? new Audio(cardSelectSoundPath)
     cardSelectSoundRef.current = sound
@@ -642,13 +749,14 @@ export default function Game() {
           selectedCardOutlineColor={selectedCardOutlineColor}
           opponentHoveredHandIndexes={opponentHoveredHandIndexes}
           discardPileHighlightStartIndex={discardPileHighlightStartIndex}
+          swappableMeldJokerIds={swappableMeldJokerIds}
           tableHint={tableHint}
           handSortMode={handSortMode}
           canDraw={canDraw}
           canDiscard={canDiscard}
           canPickUpDiscardPile={canPickUpDiscardPile}
           canPutDownMeld={canPutDownMeld}
-          canPutDownSelectedMeld={selectedMeldCards.length > 0 && !selectedMeldError}
+          canPutDownSelectedMeld={selectedMeldCards.length >= 3 && !selectedMeldError}
           onDrawCard={handleDrawCard}
           onHandCardClick={handleToggleMeldCard}
           onHandCardReorder={handleHandCardReorder}
@@ -658,6 +766,7 @@ export default function Game() {
           onDiscardPileCardHover={setHoveredDiscardPileStartIndex}
           onDiscardHandCard={handleDiscardCard}
           onDiscardSelectedCard={handleDiscardSelectedCard}
+          onMeldJokerClick={handleSwapMeldJoker}
           onPutDownMeld={handlePutDownMeld}
         />
       </section>

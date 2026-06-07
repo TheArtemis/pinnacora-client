@@ -8,9 +8,12 @@ import PointsBurst from './PointsBurst'
 
 type MeldCardsProps = {
   state: ServerGameState | null
+  swappableMeldJokerIds: Set<string>
+  canSwapJoker: boolean
+  onMeldJokerClick: (meldId: string, jokerCardId: string) => void
 }
 
-export default function MeldCards({ state }: MeldCardsProps) {
+export default function MeldCards({ state, swappableMeldJokerIds, canSwapJoker, onMeldJokerClick }: MeldCardsProps) {
   const melds = state?.melds ?? emptyMelds
   const viewerPlayerId = localPlayerId(state)
   const currentMeldCardIds = useMemo(() => melds.flatMap((meld) => meld.cards.map((card) => `${meld.id}-${card.id}`)), [melds])
@@ -22,6 +25,7 @@ export default function MeldCards({ state }: MeldCardsProps) {
   const seenMeldCardIdsRef = useRef(new Set<string>())
   const [materializingMeldCardIds, setMaterializingMeldCardIds] = useState<Set<string>>(() => new Set())
   const [activePointBurstMeldIds, setActivePointBurstMeldIds] = useState<Set<string>>(() => new Set())
+  const [hoveredMeldJokerId, setHoveredMeldJokerId] = useState<string | null>(null)
 
   useEffect(() => {
     const nextMeldCardIds = currentMeldCardKey ? currentMeldCardKey.split('|') : []
@@ -92,7 +96,12 @@ export default function MeldCards({ state }: MeldCardsProps) {
           <group key={meld.id}>
             {visibleCards.map(({ card, originalIndex }, visibleCardIndex) => {
               const meldCardId = `${meld.id}-${card.id}`
+              const swappableMeldJokerId = `${meld.id}:${card.id}`
               const shouldMaterialize = materializingMeldCardIds.has(meldCardId)
+              const isJoker = card.rank === 'JOKER' || card.suit === 'joker'
+              const isClickableJoker = canSwapJoker && isJoker
+              const isSwappableJoker = swappableMeldJokerIds.has(swappableMeldJokerId)
+              const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
 
               return (
                 <CardMesh
@@ -105,6 +114,12 @@ export default function MeldCards({ state }: MeldCardsProps) {
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
+                  selected={isSwappableJoker}
+                  hovered={isHoveredJoker}
+                  outlineColor={isSwappableJoker ? '#3f7a54' : undefined}
+                  onClick={isClickableJoker ? () => onMeldJokerClick(meld.id, card.id) : undefined}
+                  onPointerOver={isClickableJoker ? () => setHoveredMeldJokerId(swappableMeldJokerId) : undefined}
+                  onPointerOut={isClickableJoker ? () => setHoveredMeldJokerId(null) : undefined}
                 />
               )
             })}

@@ -13,6 +13,7 @@ export type GameTableSceneProps = {
   selectedCardOutlineColor?: string
   opponentHoveredHandIndexes: Set<number>
   discardPileHighlightStartIndex: number | null
+  swappableMeldJokerIds: Set<string>
   tableHint: string
   handSortMode: HandSortMode
   canDraw: boolean
@@ -29,6 +30,7 @@ export type GameTableSceneProps = {
   onDiscardPileCardHover: (index: number | null) => void
   onDiscardHandCard: (cardId: string) => void
   onDiscardSelectedCard: () => void
+  onMeldJokerClick: (meldId: string, jokerCardId: string) => void
   onPutDownMeld: () => void
 }
 
