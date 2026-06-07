@@ -9,8 +9,9 @@ import type { GameTableSceneProps } from './types'
 
 const LOCAL_HAND_CARD_SPACING = 1.08
 const LOCAL_HAND_MAX_WIDTH = 11.6
+const DRAG_CLICK_DISTANCE = 6
 
-type LocalHandProps = Pick<GameTableSceneProps, 'selectedCardIds' | 'onHandCardClick' | 'onHandCardHover'> & {
+type LocalHandProps = Pick<GameTableSceneProps, 'selectedCardIds' | 'onHandCardClick' | 'onHandCardReorder' | 'onHandCardHover'> & {
   cards: CardType[]
   puttingDownCardIds: Set<string>
   isGatheringForSort: boolean
@@ -26,13 +27,17 @@ export default function LocalHand({
   selectedCardOutlineColor,
   onHandAreaFocusChange,
   onHandCardClick,
+  onHandCardReorder,
   onHandCardHover,
 }: LocalHandProps) {
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [isHandAreaHovered, setIsHandAreaHovered] = useState(false)
   const handAreaLeaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const hasSeenInitialCardsRef = useRef(false)
   const seenCardIdsRef = useRef(new Set<string>())
+  const dragStateRef = useRef<{ cardId: string; startX: number; startY: number; moved: boolean } | null>(null)
+  const suppressNextClickRef = useRef(false)
   const enteringCardIds = hasSeenInitialCardsRef.current
     ? new Set(cards.filter((card) => !seenCardIdsRef.current.has(card.id)).map((card) => card.id))
     : new Set<string>()
@@ -58,6 +63,35 @@ export default function LocalHand({
     }
   }, [])
 
+  useEffect(() => {
+    function handleWindowPointerUp() {
+      if (dragStateRef.current?.moved) {
+        suppressNextClickRef.current = true
+      }
+
+      dragStateRef.current = null
+      setDraggingCardId(null)
+    }
+
+    window.addEventListener('pointerup', handleWindowPointerUp)
+
+    return () => window.removeEventListener('pointerup', handleWindowPointerUp)
+  }, [])
+
+  useEffect(() => {
+    const previousCursor = document.body.style.cursor
+
+    if (draggingCardId) {
+      document.body.style.cursor = 'grabbing'
+    } else if (hoveredCardIndex !== null) {
+      document.body.style.cursor = 'grab'
+    }
+
+    return () => {
+      document.body.style.cursor = previousCursor
+    }
+  }, [draggingCardId, hoveredCardIndex])
+
   function handleHandAreaOver() {
     if (handAreaLeaveTimeoutRef.current) {
       window.clearTimeout(handAreaLeaveTimeoutRef.current)
@@ -78,19 +112,76 @@ export default function LocalHand({
 
   function handleCardClick(event: ThreeEvent<MouseEvent>, card: CardType) {
     event.stopPropagation()
+
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false
+      return
+    }
+
     onHandCardClick(card)
+  }
+
+  function handleCardPointerDown(event: ThreeEvent<PointerEvent>, card: CardType) {
+    event.stopPropagation()
+    handleHandAreaOver()
+    dragStateRef.current = {
+      cardId: card.id,
+      startX: event.nativeEvent.clientX,
+      startY: event.nativeEvent.clientY,
+      moved: false,
+    }
+  }
+
+  function updateDragStateFromPointer(event: ThreeEvent<PointerEvent>) {
+    const dragState = dragStateRef.current
+
+    if (!dragState) {
+      return undefined
+    }
+
+    const deltaX = event.nativeEvent.clientX - dragState.startX
+    const deltaY = event.nativeEvent.clientY - dragState.startY
+
+    if (!dragState.moved && Math.hypot(deltaX, deltaY) >= DRAG_CLICK_DISTANCE) {
+      dragState.moved = true
+      setDraggingCardId(dragState.cardId)
+    }
+
+    return dragState
+  }
+
+  function handleCardPointerMove(event: ThreeEvent<PointerEvent>) {
+    updateDragStateFromPointer(event)
   }
 
   function handleCardOver(event: ThreeEvent<PointerEvent>, index: number) {
     event.stopPropagation()
     handleHandAreaOver()
     setHoveredCardIndex(index)
+
+    const dragState = updateDragStateFromPointer(event)
+    const targetCard = cards[index]
+
+    if (dragState?.moved && targetCard && dragState.cardId !== targetCard.id) {
+      onHandCardReorder(dragState.cardId, targetCard.id)
+    }
   }
 
   function handleCardOut(event: ThreeEvent<PointerEvent>, index: number) {
     event.stopPropagation()
     handleHandAreaOut()
     setHoveredCardIndex((currentIndex) => (currentIndex === index ? null : currentIndex))
+  }
+
+  function handleCardPointerUp(event: ThreeEvent<PointerEvent>) {
+    event.stopPropagation()
+
+    if (dragStateRef.current?.moved) {
+      suppressNextClickRef.current = true
+    }
+
+    dragStateRef.current = null
+    setDraggingCardId(null)
   }
 
   return (
@@ -104,6 +195,7 @@ export default function LocalHand({
         const interactionWidth = isLastCard ? CARD_WIDTH : resolvedSpacing
         const interactionOffsetX = isLastCard ? 0 : -visibleOverlap / 2
         const isPuttingDown = puttingDownCardIds.has(card.id)
+        const isDragging = draggingCardId === card.id
         const targetRotation: [number, number, number] = isGatheringForSort
           ? [isHandAreaHovered ? -0.42 : -1.08, 0, 0]
           : [isHandAreaHovered ? -0.42 : -1.08, 0, 0]
@@ -122,11 +214,11 @@ export default function LocalHand({
               rotation={targetRotation}
               animateFrom={animateFrom}
               animateRotationFrom={animateFrom ? [-Math.PI / 2, 0, 0.04] : undefined}
-              renderOrder={index}
+              renderOrder={isDragging ? 140 + index : index}
               layerOnTop
               selected={selectedCardIds.has(card.id)}
               outlineColor={selectedCardOutlineColor}
-              hovered={hoveredCardIndex === index}
+              hovered={hoveredCardIndex === index || isDragging}
               opacity={isPuttingDown ? 0 : 1}
               scale={isPuttingDown ? 0.62 : 1}
             />
@@ -135,6 +227,9 @@ export default function LocalHand({
                 position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
                 rotation={targetRotation}
                 onClick={(event) => handleCardClick(event, card)}
+                onPointerDown={(event) => handleCardPointerDown(event, card)}
+                onPointerMove={handleCardPointerMove}
+                onPointerUp={handleCardPointerUp}
                 onPointerOver={(event) => handleCardOver(event, index)}
                 onPointerOut={(event) => handleCardOut(event, index)}
               >

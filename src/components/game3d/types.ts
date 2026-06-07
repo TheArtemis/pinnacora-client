@@ -21,6 +21,7 @@ export type GameTableSceneProps = {
   canPutDownSelectedMeld: boolean
   onDrawCard: () => void
   onHandCardClick: (card: CardType) => void
+  onHandCardReorder: (draggedCardId: string, targetCardId: string) => void
   onHandCardHover: (cardIndexes: number[]) => void
   onHandSortModeChange: (sortMode: HandSortMode) => void
   onDiscardPileCardClick: (index: number) => void

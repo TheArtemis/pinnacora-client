@@ -168,6 +168,36 @@ function statusText(state: ServerGameState | null) {
   return `${currentName} turn to ${action}.`
 }
 
+function sortHand(cards: CardType[], sortMode: HandSortMode) {
+  return cards
+    .map((card, index) => ({ card, index }))
+    .sort((left, right) => {
+      const primaryDifference =
+        sortMode === 'suit'
+          ? suitOrder[left.card.suit] - suitOrder[right.card.suit]
+          : rankOrder[left.card.rank] - rankOrder[right.card.rank]
+      const secondaryDifference =
+        sortMode === 'suit'
+          ? rankOrder[left.card.rank] - rankOrder[right.card.rank]
+          : suitOrder[left.card.suit] - suitOrder[right.card.suit]
+
+      return primaryDifference || secondaryDifference || left.index - right.index
+    })
+    .map(({ card }) => card)
+}
+
+function resolveHandOrder(currentOrderIds: string[], cards: CardType[], fallbackSortMode: HandSortMode) {
+  const cardIds = new Set(cards.map((card) => card.id))
+  const orderedExistingIds = currentOrderIds.filter((cardId) => cardIds.has(cardId))
+  const baseIds = orderedExistingIds.length > 0
+    ? orderedExistingIds
+    : sortHand(cards, fallbackSortMode).map((card) => card.id)
+  const orderedIdSet = new Set(baseIds)
+  const newIds = cards.map((card) => card.id).filter((cardId) => !orderedIdSet.has(cardId))
+
+  return [...baseIds, ...newIds]
+}
+
 export default function Game() {
   const navigate = useNavigate()
   const { gameId = '' } = useParams()
@@ -189,6 +219,7 @@ export default function Game() {
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
   const [opponentHandHover, setOpponentHandHover] = useState<{ playerId: string; cardIndexes: number[] } | null>(null)
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('suit')
+  const [handOrderIds, setHandOrderIds] = useState<string[]>([])
   const [isHandGatheringForSort, setIsHandGatheringForSort] = useState(false)
   const puttingDownAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const handSortAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
@@ -213,21 +244,27 @@ export default function Game() {
     [selectedMeldCards],
   )
   const sortedHand = useMemo(() => {
-    return hand
-      .map((card, index) => ({ card, index }))
-      .sort((left, right) => {
-        const primaryDifference =
-          handSortMode === 'suit'
-            ? suitOrder[left.card.suit] - suitOrder[right.card.suit]
-            : rankOrder[left.card.rank] - rankOrder[right.card.rank]
-        const secondaryDifference =
-          handSortMode === 'suit'
-            ? rankOrder[left.card.rank] - rankOrder[right.card.rank]
-            : suitOrder[left.card.suit] - suitOrder[right.card.suit]
+    const cardsById = new Map(hand.map((card) => [card.id, card]))
+    const orderIds = resolveHandOrder(handOrderIds, hand, handSortMode)
 
-        return primaryDifference || secondaryDifference || left.index - right.index
-      })
-      .map(({ card }) => card)
+    return orderIds
+      .map((cardId) => cardsById.get(cardId))
+      .filter((card): card is CardType => Boolean(card))
+  }, [hand, handOrderIds, handSortMode])
+
+  useEffect(() => {
+    setHandOrderIds((currentOrderIds) => {
+      const nextOrderIds = resolveHandOrder(currentOrderIds, hand, handSortMode)
+
+      if (
+        nextOrderIds.length === currentOrderIds.length &&
+        nextOrderIds.every((cardId, index) => cardId === currentOrderIds[index])
+      ) {
+        return currentOrderIds
+      }
+
+      return nextOrderIds
+    })
   }, [hand, handSortMode])
   const discardPile = serverState?.discardPile ?? []
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
@@ -510,8 +547,30 @@ export default function Game() {
     socket.emit('hover_hand_cards', { cardIndexes })
   }, [serverState?.youPlayerId])
 
+  function handleHandCardReorder(draggedCardId: string, targetCardId: string) {
+    if (draggedCardId === targetCardId) {
+      return
+    }
+
+    setHandOrderIds((currentOrderIds) => {
+      const nextOrderIds = resolveHandOrder(currentOrderIds, hand, handSortMode)
+      const draggedIndex = nextOrderIds.indexOf(draggedCardId)
+      const targetIndex = nextOrderIds.indexOf(targetCardId)
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        return currentOrderIds
+      }
+
+      nextOrderIds.splice(draggedIndex, 1)
+      nextOrderIds.splice(targetIndex, 0, draggedCardId)
+
+      return nextOrderIds
+    })
+  }
+
   function handleChangeHandSortMode(nextSortMode: HandSortMode) {
     setHandSortMode(nextSortMode)
+    setHandOrderIds(sortHand(hand, nextSortMode).map((card) => card.id))
     setIsHandGatheringForSort(true)
 
     if (handSortAnimationTimeoutRef.current) {
@@ -636,6 +695,7 @@ export default function Game() {
           canPutDownSelectedMeld={selectedMeldCards.length > 0 && !selectedMeldError}
           onDrawCard={handleDrawCard}
           onHandCardClick={handleToggleMeldCard}
+          onHandCardReorder={handleHandCardReorder}
           onHandCardHover={handleHandCardHover}
           onHandSortModeChange={handleChangeHandSortMode}
           onDiscardPileCardClick={handlePickUpDiscardPile}

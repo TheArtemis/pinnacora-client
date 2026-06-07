@@ -65,6 +65,7 @@ export default function SceneContent(props: SceneContentProps) {
         isGatheringForSort={props.isHandGatheringForSort}
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
+        onHandCardReorder={props.onHandCardReorder}
         onHandCardHover={props.onHandCardHover}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
