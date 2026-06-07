@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
-import Card from '../components/Card'
+import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
 import type { ServerGameState } from '../game/serverTypes'
 import { connectSocket, socket } from '../socket'
@@ -153,11 +153,14 @@ export default function Game() {
   const [copiedGameLink, setCopiedGameLink] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [selectedMeldCardIds, setSelectedMeldCardIds] = useState<string[]>([])
+  const [puttingDownCards, setPuttingDownCards] = useState<CardType[]>([])
   const [selectedDiscardPileStartIndex, setSelectedDiscardPileStartIndex] = useState<number | null>(null)
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
+  const [opponentHandHover, setOpponentHandHover] = useState<{ playerId: string; cardIndexes: number[] } | null>(null)
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('suit')
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
-  const [isDiscardPileDropTargetActive, setIsDiscardPileDropTargetActive] = useState(false)
+  const [isHandGatheringForSort, setIsHandGatheringForSort] = useState(false)
+  const puttingDownAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const handSortAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -194,7 +197,28 @@ export default function Game() {
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
   const canSelectMeldCards = canPutDownMeld || canPickUpDiscardPile
   const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
-  const selectedMeldCardIdSet = useMemo(() => new Set(selectedMeldCardIds), [selectedMeldCardIds])
+  const sceneSelectedCardIds = useMemo(() => {
+    const cardIds = new Set(selectedMeldCardIds)
+
+    if (selectedCardId) {
+      cardIds.add(selectedCardId)
+    }
+
+    return cardIds
+  }, [selectedCardId, selectedMeldCardIds])
+  const opponentHoveredHandIndexes = useMemo(() => {
+    const opponentPlayerIds = new Set(
+      serverState?.players
+        .filter((player) => player.id !== serverState.youPlayerId)
+        .map((player) => player.id) ?? [],
+    )
+
+    if (!opponentHandHover || !opponentPlayerIds.has(opponentHandHover.playerId)) {
+      return new Set<number>()
+    }
+
+    return new Set(opponentHandHover.cardIndexes)
+  }, [opponentHandHover, serverState])
   const discardPileCombinationCard =
     discardPileHighlightStartIndex === null ? undefined : discardPile[discardPileHighlightStartIndex]
   const discardPileCardsAddedToHand =
@@ -206,6 +230,40 @@ export default function Game() {
   const discardPilePickupCombination = discardPileCombinationCard
     ? [discardPileCombinationCard, ...selectedMeldCards]
     : selectedMeldCards
+  const tableHint = useMemo(() => {
+    if (!serverState) {
+      return 'Connecting to the table...'
+    }
+
+    if (canPickUpDiscardPile) {
+      if (discardPileCombinationCard) {
+        return discardPilePickupError
+          ? `No pickup combination yet: ${discardPilePickupError}`
+          : `Valid pickup: ${discardPilePickupCombination.length} cards go down and ${discardPileCardsAddedToHand.length} newer cards join your hand.`
+      }
+
+      return 'Click the deck pile to draw, or select hand cards and choose a discard card to pick up.'
+    }
+
+    if (canDraw) {
+      return 'Click the deck pile to draw.'
+    }
+
+    if (canDiscard) {
+      return 'Select one hand card and click the discard pile to discard, or select three or more cards to put down a combination.'
+    }
+
+    return statusText(serverState)
+  }, [
+    canDiscard,
+    canDraw,
+    canPickUpDiscardPile,
+    discardPileCardsAddedToHand.length,
+    discardPileCombinationCard,
+    discardPilePickupCombination.length,
+    discardPilePickupError,
+    serverState,
+  ])
 
   useEffect(() => {
     if (!user) {
@@ -235,13 +293,24 @@ export default function Game() {
       setSelectedMeldCardIds([])
       setSelectedDiscardPileStartIndex(null)
       setHoveredDiscardPileStartIndex(null)
-      setDraggedCardId(null)
-      setIsDiscardPileDropTargetActive(false)
+      setOpponentHandHover(null)
       setGameError('')
     }
 
     function handleGameError(nextError: { error?: string }) {
+      setPuttingDownCards([])
       setGameError(nextError.error ?? 'Could not join game')
+    }
+
+    function handleOpponentHandHover(payload: { playerId?: unknown; cardIndexes?: unknown }) {
+      if (typeof payload.playerId !== 'string' || !Array.isArray(payload.cardIndexes)) {
+        return
+      }
+
+      setOpponentHandHover({
+        playerId: payload.playerId,
+        cardIndexes: payload.cardIndexes.filter((cardIndex): cardIndex is number => Number.isInteger(cardIndex) && cardIndex >= 0),
+      })
     }
 
     activeSocket.on('connect', handleConnect)
@@ -249,6 +318,7 @@ export default function Game() {
     activeSocket.on('connect_error', handleConnectError)
     activeSocket.on('game_state', handleGameState)
     activeSocket.on('game_error', handleGameError)
+    activeSocket.on('opponent_hand_hover', handleOpponentHandHover)
 
     user
       .getIdToken()
@@ -271,11 +341,19 @@ export default function Game() {
 
     return () => {
       cancelled = true
+      if (puttingDownAnimationTimeoutRef.current) {
+        window.clearTimeout(puttingDownAnimationTimeoutRef.current)
+      }
+      if (handSortAnimationTimeoutRef.current) {
+        window.clearTimeout(handSortAnimationTimeoutRef.current)
+      }
       activeSocket.off('connect', handleConnect)
       activeSocket.off('disconnect', handleDisconnect)
       activeSocket.off('connect_error', handleConnectError)
       activeSocket.off('game_state', handleGameState)
       activeSocket.off('game_error', handleGameError)
+      activeSocket.off('opponent_hand_hover', handleOpponentHandHover)
+      activeSocket.emit('hover_hand_cards', { cardIndexes: [] })
       activeSocket.disconnect()
     }
   }, [gameId, tournamentId, user])
@@ -321,6 +399,19 @@ export default function Game() {
     socket.emit('discard_card', { cardId })
   }
 
+  function handleDiscardSelectedCard() {
+    if (!canDiscard) {
+      return
+    }
+
+    if (selectedMeldCardIds.length !== 1) {
+      setGameError('Select exactly one card from your hand, then click the discard pile.')
+      return
+    }
+
+    handleDiscardCard(selectedMeldCardIds[0])
+  }
+
   function handleToggleMeldCard(card: CardType) {
     if (!canSelectMeldCards) {
       return
@@ -332,6 +423,27 @@ export default function Game() {
         ? currentCardIds.filter((cardId) => cardId !== card.id)
         : [...currentCardIds, card.id],
     )
+  }
+
+  const handleHandCardHover = useCallback((cardIndexes: number[]) => {
+    if (!serverState?.youPlayerId) {
+      return
+    }
+
+    socket.emit('hover_hand_cards', { cardIndexes })
+  }, [serverState?.youPlayerId])
+
+  function handleChangeHandSortMode(nextSortMode: HandSortMode) {
+    setHandSortMode(nextSortMode)
+    setIsHandGatheringForSort(true)
+
+    if (handSortAnimationTimeoutRef.current) {
+      window.clearTimeout(handSortAnimationTimeoutRef.current)
+    }
+
+    handSortAnimationTimeoutRef.current = window.setTimeout(() => {
+      setIsHandGatheringForSort(false)
+    }, 280)
   }
 
   function handlePutDownMeld() {
@@ -347,49 +459,17 @@ export default function Game() {
     }
 
     setGameError('')
+    setPuttingDownCards(selectedMeldCards)
+
+    if (puttingDownAnimationTimeoutRef.current) {
+      window.clearTimeout(puttingDownAnimationTimeoutRef.current)
+    }
+
+    puttingDownAnimationTimeoutRef.current = window.setTimeout(() => {
+      setPuttingDownCards([])
+    }, 850)
+
     socket.emit('put_down_meld', { cardIds: selectedMeldCardIds })
-  }
-
-  function handleHandCardDragStart(event: DragEvent<HTMLElement>, card: CardType) {
-    if (!canDiscard) {
-      return
-    }
-
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', card.id)
-    setDraggedCardId(card.id)
-    setSelectedCardId(card.id)
-    setGameError('')
-  }
-
-  function handleHandCardDragEnd() {
-    setDraggedCardId(null)
-    setIsDiscardPileDropTargetActive(false)
-  }
-
-  function handleDiscardPileDragOver(event: DragEvent<HTMLDivElement>) {
-    if (!canDiscard || !draggedCardId) {
-      return
-    }
-
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    setIsDiscardPileDropTargetActive(true)
-  }
-
-  function handleDiscardPileDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault()
-
-    const droppedCardId = draggedCardId || event.dataTransfer.getData('text/plain')
-
-    if (!canDiscard || !droppedCardId) {
-      setIsDiscardPileDropTargetActive(false)
-      return
-    }
-
-    handleDiscardCard(droppedCardId)
-    setDraggedCardId(null)
-    setIsDiscardPileDropTargetActive(false)
   }
 
   async function handleFinishGame() {
@@ -432,16 +512,20 @@ export default function Game() {
           <button type="button" className="secondary-button" onClick={handleCopyGameLink}>
             {copiedGameLink ? 'Copied!' : 'Copy game link'}
           </button>
+          {isTournamentGame ? (
+            <button type="button" className="secondary-button" onClick={handleFinishGame} disabled={finishing}>
+              {finishing ? 'Finishing...' : 'Finish game'}
+            </button>
+          ) : null}
+          <Link className="secondary-link" to={tournamentId ? `/tournaments/${tournamentId}` : '/'}>
+            {tournamentId ? 'Back to tournament' : 'Back to lobby'}
+          </Link>
           <div className="connection-pill">{connectionStatus}</div>
         </div>
       </header>
 
-      <section className="table">
-        <div className="table-zone">
-          <div className="section-heading table-heading">
-            <h2>Players</h2>
-            <span>{statusText(serverState)}</span>
-          </div>
+      <section className="table table--three">
+        <div className="table-zone table-status-panel">
           <div className="players">
             {serverState?.players.map((player) => (
               <article className="player" key={player.id}>
@@ -457,176 +541,31 @@ export default function Game() {
           </div>
         </div>
 
-        <div className="table-zone table-controls">
-          <div>
-            <h2>Deck</h2>
-            <p className="muted">{serverState?.deckCount ?? 0} cards left</p>
-          </div>
-          <button type="button" onClick={handleDrawCard} disabled={!canDraw}>
-            Draw card
-          </button>
-          {canPickUpDiscardPile ? (
-            <p className="muted">
-              To pick up discards, select hand cards first, then choose the deepest discard card they combine with.
-            </p>
-          ) : null}
-          {canDiscard ? <p className="muted">Drag a card from your hand to the discard pile.</p> : null}
-        </div>
-
-        <div className="table-zone">
-          <h2>Combinations on table</h2>
-          <div className="meld-list">
-            {serverState?.players.map((player) => {
-              const playerMelds = serverState.melds.filter((meld) => meld.playerId === player.id)
-              const playerName = player.id === serverState.youPlayerId ? 'Your combinations' : `${player.name}'s combinations`
-
-              return (
-                <section className="player-melds" key={player.id}>
-                  <div className="meld-owner-heading">
-                    <strong>{playerName}</strong>
-                    <span>{playerMelds.length}</span>
-                  </div>
-                  {playerMelds.map((meld) => (
-                    <article className="meld" key={meld.id}>
-                      <div className="meld-header">
-                        <strong>{meld.type === 'set' ? 'Same value' : 'Sequence'}</strong>
-                        <span>{meld.cards.length} cards</span>
-                      </div>
-                      <div className="meld-cards">
-                        {meld.cards.map((card) => (
-                          <Card card={card} key={card.id} />
-                        ))}
-                      </div>
-                    </article>
-                  ))}
-                  {playerMelds.length === 0 ? <p className="muted">No combinations put down yet.</p> : null}
-                </section>
-              )
-            })}
-            {!serverState ? <p className="muted">Combinations will appear here.</p> : null}
-          </div>
-        </div>
-
-        <div className="table-zone">
-          <h2>Discard pile</h2>
-          {canPickUpDiscardPile ? (
-            <p className={discardPileCombinationCard && !discardPilePickupError ? 'pickup-hint pickup-hint--valid' : 'pickup-hint'}>
-              {discardPileCombinationCard
-                ? discardPilePickupError
-                  ? `No pickup combination yet: ${discardPilePickupError}`
-                  : 'Valid pickup: that discard card combines with your selected hand cards.'
-                : 'Select hand cards, then hover a discard card to check whether you can pick up that sequence.'}
-            </p>
-          ) : null}
-          {canPickUpDiscardPile && discardPileCombinationCard ? (
-            <div className="pickup-preview">
-              <section className="pickup-preview-section">
-                <div className="pickup-preview-heading">
-                  <strong>Will be put down</strong>
-                  <span>{discardPilePickupCombination.length} cards</span>
-                </div>
-                <div className="pickup-preview-cards">
-                  {discardPilePickupCombination.map((card) => (
-                    <Card card={card} key={card.id} selected={card.id === discardPileCombinationCard.id} />
-                  ))}
-                </div>
-                <p className="muted">The highlighted discard card must be part of this combination.</p>
-              </section>
-              <section className="pickup-preview-section">
-                <div className="pickup-preview-heading">
-                  <strong>Will be added to hand</strong>
-                  <span>{discardPileCardsAddedToHand.length} cards</span>
-                </div>
-                <div className="pickup-preview-cards">
-                  {discardPileCardsAddedToHand.map((card) => (
-                    <Card card={card} key={card.id} />
-                  ))}
-                  {discardPileCardsAddedToHand.length === 0 ? (
-                    <p className="muted">No newer discard cards above it.</p>
-                  ) : null}
-                </div>
-              </section>
-            </div>
-          ) : null}
-          <div
-            className={isDiscardPileDropTargetActive ? 'discard-pile discard-pile--drop-target' : 'discard-pile'}
-            onDragLeave={() => setIsDiscardPileDropTargetActive(false)}
-            onDragOver={handleDiscardPileDragOver}
-            onDrop={handleDiscardPileDrop}
-            onMouseLeave={() => setHoveredDiscardPileStartIndex(null)}
-          >
-            {discardPile.map((card, index) => (
-              <Card
-                card={card}
-                disabled={!canPickUpDiscardPile}
-                key={card.id}
-                onClick={canPickUpDiscardPile ? () => handlePickUpDiscardPile(index) : undefined}
-                onMouseEnter={canPickUpDiscardPile ? () => setHoveredDiscardPileStartIndex(index) : undefined}
-                selected={discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex}
-              />
-            ))}
-            {discardPile.length === 0 ? <p className="muted">No discarded cards yet.</p> : null}
-          </div>
-        </div>
-
-        <div className="table-zone">
-          <div className="section-heading table-heading">
-            <h2>Your hand</h2>
-            {canPutDownMeld ? (
-              <button type="button" onClick={handlePutDownMeld} disabled={selectedMeldCardIds.length === 0}>
-                Put down combination
-              </button>
-            ) : null}
-          </div>
-          <div className="hand">
-            {sortedHand.map((card) => (
-              <Card
-                card={card}
-                draggable={canDiscard}
-                disabled={!canSelectMeldCards}
-                key={card.id}
-                onClick={canSelectMeldCards ? () => handleToggleMeldCard(card) : undefined}
-                onDragEnd={handleHandCardDragEnd}
-                onDragStart={canDiscard ? (event) => handleHandCardDragStart(event, card) : undefined}
-                selected={selectedMeldCardIdSet.has(card.id) || selectedCardId === card.id || draggedCardId === card.id}
-              />
-            ))}
-            {serverState && hand.length === 0 ? <p className="muted">Your cards will appear when both players connect.</p> : null}
-          </div>
-        </div>
+        <GameTableScene
+          state={serverState}
+          hand={sortedHand}
+          puttingDownCards={puttingDownCards}
+          isHandGatheringForSort={isHandGatheringForSort}
+          selectedCardIds={sceneSelectedCardIds}
+          opponentHoveredHandIndexes={opponentHoveredHandIndexes}
+          discardPileHighlightStartIndex={discardPileHighlightStartIndex}
+          tableHint={tableHint}
+          handSortMode={handSortMode}
+          canDraw={canDraw}
+          canDiscard={canDiscard}
+          canPickUpDiscardPile={canPickUpDiscardPile}
+          canPutDownMeld={canPutDownMeld}
+          canPutDownSelectedMeld={selectedMeldCardIds.length > 0}
+          onDrawCard={handleDrawCard}
+          onHandCardClick={handleToggleMeldCard}
+          onHandCardHover={handleHandCardHover}
+          onHandSortModeChange={handleChangeHandSortMode}
+          onDiscardPileCardClick={handlePickUpDiscardPile}
+          onDiscardPileCardHover={setHoveredDiscardPileStartIndex}
+          onDiscardSelectedCard={handleDiscardSelectedCard}
+          onPutDownMeld={handlePutDownMeld}
+        />
       </section>
-
-      <footer className="game-footer">
-        <span>{statusText(serverState)}</span>
-        <div className="hand-sort-actions" aria-label="Hand sorting">
-          <button
-            type="button"
-            className={handSortMode === 'suit' ? 'secondary-button secondary-button--active' : 'secondary-button'}
-            onClick={() => setHandSortMode('suit')}
-            aria-pressed={handSortMode === 'suit'}
-          >
-            Order by suit
-          </button>
-          <button
-            type="button"
-            className={handSortMode === 'value' ? 'secondary-button secondary-button--active' : 'secondary-button'}
-            onClick={() => setHandSortMode('value')}
-            aria-pressed={handSortMode === 'value'}
-          >
-            Order by value
-          </button>
-        </div>
-        <div className="game-actions">
-          {isTournamentGame ? (
-            <button type="button" onClick={handleFinishGame} disabled={finishing}>
-              {finishing ? 'Finishing...' : 'Finish game'}
-            </button>
-          ) : null}
-          <Link to={tournamentId ? `/tournaments/${tournamentId}` : '/'}>
-            {tournamentId ? 'Back to tournament' : 'Back to lobby'}
-          </Link>
-        </div>
-      </footer>
       {gameError ? <p className="form-error">{gameError}</p> : null}
       {finishError ? <p className="form-error">{finishError}</p> : null}
     </main>

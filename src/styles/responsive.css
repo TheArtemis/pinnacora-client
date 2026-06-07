@@ -25,6 +25,32 @@
     grid-template-columns: 1fr;
   }
 
+  .game-scene__hud {
+    grid-template-columns: 1fr;
+  }
+
+  .table-status-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-status-panel .players {
+    overflow-x: auto;
+  }
+
+  .game-scene {
+    min-height: 520px;
+  }
+
+  .game-scene__table-hint {
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    border-radius: 18px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .join-form input {
     width: auto;
   }
