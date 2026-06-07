@@ -7,6 +7,7 @@ export type GameTableSceneProps = {
   state: ServerGameState | null
   hand: CardType[]
   puttingDownCards: CardType[]
+  hiddenHandCardIds: Set<string>
   isHandGatheringForSort: boolean
   selectedCardIds: Set<string>
   selectedCardOutlineColor?: string

@@ -3,8 +3,19 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
+import { getMeldType, validateMeld } from '../game/melds'
+import {
+  createDiscardCardAction,
+  createDrawCardAction,
+  createPickUpDiscardPileAction,
+  createPutDownMeldAction,
+  hiddenCardIdsForOptimisticActions,
+  projectOptimisticAction,
+  projectOptimisticActions,
+  type OptimisticGameAction,
+} from '../game/optimisticActions'
 import { calculateMeldPoints, getMeldPoints } from '../game/scoring'
-import type { ServerGameMeld, ServerGameState } from '../game/serverTypes'
+import type { ServerGameState } from '../game/serverTypes'
 import { connectSocket, socket } from '../socket'
 import { useAuth } from '../auth/useAuth'
 
@@ -37,112 +48,7 @@ const rankOrder: Record<CardType['rank'], number> = {
   JOKER: 13,
 }
 
-const sequenceRankOrder: Record<CardType['rank'], number> = {
-  A: 1,
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
-  '10': 10,
-  J: 11,
-  Q: 12,
-  K: 13,
-  JOKER: 0,
-}
-
 const emptyHand: CardType[] = []
-
-function sequenceValues(cards: CardType[], aceHigh: boolean) {
-  return cards
-    .filter((card) => card.rank !== 'JOKER')
-    .map((card) => (aceHigh && card.rank === 'A' ? 14 : sequenceRankOrder[card.rank]))
-    .sort((left, right) => left - right)
-}
-
-function isJoker(card: CardType) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
-}
-
-function canFitSequence(values: number[], totalCards: number) {
-  const firstValue = values[0]
-  const lastValue = values[values.length - 1]
-
-  if (firstValue === undefined || lastValue === undefined) {
-    return false
-  }
-
-  return lastValue - firstValue + 1 <= totalCards
-}
-
-function validateMeld(cards: CardType[]) {
-  if (cards.length < 3) {
-    return 'Choose at least three cards for a combination.'
-  }
-
-  const naturalCards = cards.filter((card) => !isJoker(card))
-
-  if (naturalCards.length === 0) {
-    return 'Choose at least one non-joker card for the combination.'
-  }
-
-  const uniqueRanks = new Set(naturalCards.map((card) => card.rank))
-  const uniqueSuits = new Set(naturalCards.map((card) => card.suit))
-
-  if (uniqueRanks.size === 1) {
-    if (cards.length > 4) {
-      return 'Same-value combinations can only use four cards, one for each suit.'
-    }
-
-    return uniqueSuits.size === naturalCards.length ? '' : 'Same-value combinations need different suits.'
-  }
-
-  if (uniqueSuits.size !== 1) {
-    return 'Sequences must all be the same suit.'
-  }
-
-  if (uniqueRanks.size !== naturalCards.length) {
-    return 'Sequences cannot contain duplicate values.'
-  }
-
-  if (canFitSequence(sequenceValues(naturalCards, false), cards.length) ||
-    canFitSequence(sequenceValues(naturalCards, true), cards.length)) {
-    return ''
-  }
-
-  return 'Choose consecutive values for a sequence, like A-2-3, 4-5-6, or J-Q-K-A.'
-}
-
-function getMeldType(cards: CardType[]): ServerGameMeld['type'] | undefined {
-  if (cards.length < 3) {
-    return undefined
-  }
-
-  const naturalCards = cards.filter((card) => !isJoker(card))
-
-  if (naturalCards.length === 0) {
-    return undefined
-  }
-
-  const uniqueRanks = new Set(naturalCards.map((card) => card.rank))
-  const uniqueSuits = new Set(naturalCards.map((card) => card.suit))
-
-  if (uniqueRanks.size === 1) {
-    return cards.length <= 4 && uniqueSuits.size === naturalCards.length ? 'set' : undefined
-  }
-
-  if (uniqueSuits.size !== 1 || uniqueRanks.size !== naturalCards.length) {
-    return undefined
-  }
-
-  return canFitSequence(sequenceValues(naturalCards, false), cards.length) ||
-    canFitSequence(sequenceValues(naturalCards, true), cards.length)
-    ? 'sequence'
-    : undefined
-}
 
 function statusText(state: ServerGameState | null) {
   if (!state) {
@@ -224,6 +130,9 @@ export default function Game() {
   const puttingDownAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const handSortAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const cardSelectSoundRef = useRef<HTMLAudioElement | null>(null)
+  const confirmedServerStateRef = useRef<ServerGameState | null>(null)
+  const pendingOptimisticActionsRef = useRef<OptimisticGameAction[]>([])
+  const [pendingOptimisticActions, setPendingOptimisticActions] = useState<OptimisticGameAction[]>([])
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -252,20 +161,6 @@ export default function Game() {
       .filter((card): card is CardType => Boolean(card))
   }, [hand, handOrderIds, handSortMode])
 
-  useEffect(() => {
-    setHandOrderIds((currentOrderIds) => {
-      const nextOrderIds = resolveHandOrder(currentOrderIds, hand, handSortMode)
-
-      if (
-        nextOrderIds.length === currentOrderIds.length &&
-        nextOrderIds.every((cardId, index) => cardId === currentOrderIds[index])
-      ) {
-        return currentOrderIds
-      }
-
-      return nextOrderIds
-    })
-  }, [hand, handSortMode])
   const discardPile = serverState?.discardPile ?? []
   const canPickUpDiscardPile = canDraw && discardPile.length > 0
   const canSelectMeldCards = canPutDownMeld || canPickUpDiscardPile
@@ -322,6 +217,10 @@ export default function Game() {
 
     return pointsByPlayer
   }, [serverState?.melds])
+  const hiddenHandCardIds = useMemo(
+    () => hiddenCardIdsForOptimisticActions(pendingOptimisticActions),
+    [pendingOptimisticActions],
+  )
 
   const tableHint = useMemo(() => {
     if (!serverState) {
@@ -368,6 +267,27 @@ export default function Game() {
     selectedMeldPoints,
   ])
 
+  function setPendingActions(actions: OptimisticGameAction[]) {
+    pendingOptimisticActionsRef.current = actions
+    setPendingOptimisticActions(actions)
+  }
+
+  function applyOptimisticAction(action: OptimisticGameAction) {
+    if (!serverState) {
+      return false
+    }
+
+    const projectedState = projectOptimisticAction(serverState, action)
+
+    if (!projectedState) {
+      return false
+    }
+
+    setPendingActions([...pendingOptimisticActionsRef.current, action])
+    setServerState(projectedState)
+    return true
+  }
+
   useEffect(() => {
     if (!user) {
       return
@@ -391,7 +311,8 @@ export default function Game() {
     }
 
     function handleGameState(nextState: ServerGameState) {
-      setServerState(nextState)
+      confirmedServerStateRef.current = nextState
+      setServerState(projectOptimisticActions(nextState, pendingOptimisticActionsRef.current))
       setSelectedCardId(null)
       setSelectedMeldCardIds([])
       setSelectedDiscardPileStartIndex(null)
@@ -401,8 +322,20 @@ export default function Game() {
     }
 
     function handleGameError(nextError: { error?: string }) {
+      setPendingActions([])
+      setServerState(confirmedServerStateRef.current)
       setPuttingDownCards([])
       setGameError(nextError.error ?? 'Could not join game')
+    }
+
+    function handleGameActionAck(payload: { clientActionId?: unknown }) {
+      if (typeof payload.clientActionId !== 'string') {
+        return
+      }
+
+      setPendingActions(
+        pendingOptimisticActionsRef.current.filter((action) => action.id !== payload.clientActionId),
+      )
     }
 
     function handleOpponentHandHover(payload: { playerId?: unknown; cardIndexes?: unknown }) {
@@ -420,6 +353,7 @@ export default function Game() {
     activeSocket.on('disconnect', handleDisconnect)
     activeSocket.on('connect_error', handleConnectError)
     activeSocket.on('game_state', handleGameState)
+    activeSocket.on('game_action_ack', handleGameActionAck)
     activeSocket.on('game_error', handleGameError)
     activeSocket.on('opponent_hand_hover', handleOpponentHandHover)
 
@@ -454,6 +388,7 @@ export default function Game() {
       activeSocket.off('disconnect', handleDisconnect)
       activeSocket.off('connect_error', handleConnectError)
       activeSocket.off('game_state', handleGameState)
+      activeSocket.off('game_action_ack', handleGameActionAck)
       activeSocket.off('game_error', handleGameError)
       activeSocket.off('opponent_hand_hover', handleOpponentHandHover)
       activeSocket.emit('hover_hand_cards', { cardIndexes: [] })
@@ -467,7 +402,14 @@ export default function Game() {
     }
 
     setGameError('')
-    socket.emit('draw_card')
+    setSelectedCardId(null)
+    setSelectedMeldCardIds([])
+    setSelectedDiscardPileStartIndex(null)
+    const action = createDrawCardAction()
+
+    if (applyOptimisticAction(action)) {
+      socket.emit('draw_card', { clientActionId: action.id })
+    }
   }
 
   function handlePickUpDiscardPile(cardIndex: number) {
@@ -489,7 +431,14 @@ export default function Game() {
     }
 
     setGameError('')
-    socket.emit('pick_up_discard_pile', { count: discardPile.length - cardIndex, cardIds: selectedMeldCardIds })
+    const action = createPickUpDiscardPileAction(cardIndex, selectedMeldCardIds)
+    applyOptimisticAction(action)
+    setSelectedMeldCardIds([])
+    socket.emit('pick_up_discard_pile', {
+      clientActionId: action.id,
+      count: discardPile.length - cardIndex,
+      cardIds: selectedMeldCardIds,
+    })
   }
 
   function handleDiscardCard(cardId: string) {
@@ -499,7 +448,10 @@ export default function Game() {
 
     setSelectedCardId(cardId)
     setGameError('')
-    socket.emit('discard_card', { cardId })
+    setSelectedMeldCardIds([])
+    const action = createDiscardCardAction(cardId)
+    applyOptimisticAction(action)
+    socket.emit('discard_card', { clientActionId: action.id, cardId })
   }
 
   function handleDiscardSelectedCard() {
@@ -596,6 +548,9 @@ export default function Game() {
 
     setGameError('')
     setPuttingDownCards(selectedMeldCards)
+    const action = createPutDownMeldAction(selectedMeldCardIds)
+    applyOptimisticAction(action)
+    setSelectedMeldCardIds([])
 
     if (puttingDownAnimationTimeoutRef.current) {
       window.clearTimeout(puttingDownAnimationTimeoutRef.current)
@@ -605,7 +560,7 @@ export default function Game() {
       setPuttingDownCards([])
     }, 850)
 
-    socket.emit('put_down_meld', { cardIds: selectedMeldCardIds })
+    socket.emit('put_down_meld', { clientActionId: action.id, cardIds: selectedMeldCardIds })
   }
 
   async function handleFinishGame() {
@@ -681,6 +636,7 @@ export default function Game() {
           state={serverState}
           hand={sortedHand}
           puttingDownCards={puttingDownCards}
+          hiddenHandCardIds={hiddenHandCardIds}
           isHandGatheringForSort={isHandGatheringForSort}
           selectedCardIds={sceneSelectedCardIds}
           selectedCardOutlineColor={selectedCardOutlineColor}

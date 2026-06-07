@@ -83,6 +83,7 @@ export default function SceneContent(props: SceneContentProps) {
         cards={props.hand}
         selectedCardIds={props.selectedCardIds}
         selectedCardOutlineColor={props.selectedCardOutlineColor}
+        hiddenCardIds={props.hiddenHandCardIds}
         puttingDownCardIds={puttingDownCardIds}
         isGatheringForSort={props.isHandGatheringForSort}
         isCloseUp={props.isLocalHandFocused}

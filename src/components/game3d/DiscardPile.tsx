@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { localHandBaseZ, tableCardBaseY } from './constants'
@@ -34,20 +34,25 @@ export default function DiscardPile({
   onDiscardDropTargetChange,
   onDiscardSelectedCard,
 }: DiscardPileProps) {
-  const hasSeenInitialDiscardRef = useRef(false)
-  const seenDiscardCardIdsRef = useRef(new Set<string>())
-  const enteringDiscardCardIds = hasSeenInitialDiscardRef.current
-    ? new Set(cards.filter((card) => !seenDiscardCardIdsRef.current.has(card.id)).map((card) => card.id))
-    : new Set<string>()
+  const seenDiscardCardIdsRef = useRef<Set<string> | null>(null)
+  const [enteringDiscardCardIds, setEnteringDiscardCardIds] = useState<Set<string>>(() => new Set())
+  const cardMembershipKey = cards.map((card) => card.id).join('|')
   const cardSpread = Math.max(0.28, Math.min(0.5, (DISCARD_AREA_WIDTH - CARD_WIDTH) / Math.max(cards.length - 1, 1)))
   const discardCardY = tableCardBaseY + 0.018
   const canDropDraggedCard = canDiscard && Boolean(draggedHandCardId)
   const firstCardX = DISCARD_AREA_X - (Math.max(cards.length - 1, 0) * cardSpread) / 2
 
-  useEffect(() => {
-    seenDiscardCardIdsRef.current = new Set(cards.map((card) => card.id))
-    hasSeenInitialDiscardRef.current = true
-  }, [cards])
+  useLayoutEffect(() => {
+    const nextCardIds = new Set(cardMembershipKey ? cardMembershipKey.split('|') : [])
+    const previousCardIds = seenDiscardCardIdsRef.current
+    seenDiscardCardIdsRef.current = nextCardIds
+
+    if (!previousCardIds) {
+      return
+    }
+
+    setEnteringDiscardCardIds(new Set([...nextCardIds].filter((cardId) => !previousCardIds.has(cardId))))
+  }, [cardMembershipKey])
 
   return (
     <group>

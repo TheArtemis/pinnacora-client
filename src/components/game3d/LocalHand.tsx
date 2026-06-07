@@ -13,7 +13,6 @@ const LOCAL_HAND_CLOSEUP_Z_OFFSET = 0.58
 const DRAG_CLICK_DISTANCE = 6
 const DRAG_REORDER_DISTANCE = 10
 const DRAGGED_CARD_Y = tableCardBaseY + 0.34
-const OPTIMISTIC_DRAW_CARD_ID_PREFIX = 'optimistic-draw-'
 
 type HandDragState = {
   cardId: string
@@ -34,6 +33,7 @@ type LocalHandProps = Pick<
   'selectedCardIds' | 'onHandCardClick' | 'onHandCardReorder' | 'onHandCardHover'
 > & {
   cards: CardType[]
+  hiddenCardIds: Set<string>
   puttingDownCardIds: Set<string>
   isGatheringForSort: boolean
   isCloseUp: boolean
@@ -46,6 +46,7 @@ type LocalHandProps = Pick<
 export default function LocalHand({
   cards,
   selectedCardIds,
+  hiddenCardIds,
   puttingDownCardIds,
   isGatheringForSort,
   isCloseUp,
@@ -60,6 +61,7 @@ export default function LocalHand({
   const { camera, gl } = useThree()
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
+  const [activeDragState, setActiveDragState] = useState<HandDragState | null>(null)
   const [isDraggingOverHandArea, setIsDraggingOverHandArea] = useState(true)
   const [dragOffset, setDragOffset] = useState<[number, number, number]>([0, 0, 0])
   const [enteringCardIds, setEnteringCardIds] = useState<Set<string>>(() => new Set())
@@ -67,6 +69,7 @@ export default function LocalHand({
   const handAreaLeaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const enteringCardsTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const seenCardIdsRef = useRef<Set<string> | null>(null)
+  const seenHiddenCardIdsRef = useRef<Set<string>>(new Set())
   const dragStateRef = useRef<HandDragState | null>(null)
   const dragOffsetRef = useRef<[number, number, number]>([0, 0, 0])
   const isDraggingOverHandAreaRef = useRef(true)
@@ -74,7 +77,12 @@ export default function LocalHand({
   const dragPointerRef = useRef(new Vector2())
   const dragIntersectionRef = useRef(new Vector3())
   const suppressNextClickRef = useRef(false)
+  const finishDragRef = useRef<() => void>(() => undefined)
+  const updateDragStateFromCoordinatesRef = useRef<(clientX: number, clientY: number) => HandDragState | undefined>(
+    () => undefined,
+  )
   const cardMembershipKey = [...cards.map((card) => card.id)].sort().join('|')
+  const hiddenCardMembershipKey = [...hiddenCardIds].sort().join('|')
   const isDraggingOverActiveHandArea = Boolean(draggingCardId) && isDraggingOverHandArea
   const isHandPresentationActive = isHandAreaHovered || isDraggingOverActiveHandArea
 
@@ -89,13 +97,31 @@ export default function LocalHand({
   useLayoutEffect(() => {
     const nextCardIds = new Set(cardMembershipKey ? cardMembershipKey.split('|') : [])
     const previousCardIds = seenCardIdsRef.current
+    const previousHiddenCardIds = new Set(seenHiddenCardIdsRef.current)
     seenCardIdsRef.current = nextCardIds
+    seenHiddenCardIdsRef.current = hiddenCardMembershipKey ? new Set(hiddenCardMembershipKey.split('|')) : new Set()
 
     if (!previousCardIds) {
       return
     }
 
-    const nextEnteringCardIds = new Set([...nextCardIds].filter((cardId) => !previousCardIds.has(cardId)))
+    const nextEnteringCardIds = new Set(
+      [...nextCardIds].filter((cardId) => {
+        if (previousCardIds.has(cardId)) {
+          return false
+        }
+
+        if (!hiddenCardIds.has(cardId) && previousHiddenCardIds.size > 0) {
+          const [previousHiddenCardId] = previousHiddenCardIds
+          if (previousHiddenCardId) {
+            previousHiddenCardIds.delete(previousHiddenCardId)
+          }
+          return false
+        }
+
+        return true
+      }),
+    )
 
     if (nextEnteringCardIds.size === 0) {
       return
@@ -110,7 +136,7 @@ export default function LocalHand({
     enteringCardsTimeoutRef.current = window.setTimeout(() => {
       setEnteringCardIds(new Set())
     }, 900)
-  }, [cardMembershipKey])
+  }, [cardMembershipKey, hiddenCardIds, hiddenCardMembershipKey])
 
   useEffect(() => {
     return () => {
@@ -124,12 +150,17 @@ export default function LocalHand({
   }, [])
 
   useEffect(() => {
+    finishDragRef.current = finishDrag
+    updateDragStateFromCoordinatesRef.current = updateDragStateFromCoordinates
+  })
+
+  useEffect(() => {
     function handleWindowPointerMove(event: PointerEvent) {
-      updateDragStateFromCoordinates(event.clientX, event.clientY)
+      updateDragStateFromCoordinatesRef.current(event.clientX, event.clientY)
     }
 
     function handleWindowPointerUp() {
-      finishDrag()
+      finishDragRef.current()
     }
 
     window.addEventListener('pointermove', handleWindowPointerMove)
@@ -139,7 +170,7 @@ export default function LocalHand({
       window.removeEventListener('pointermove', handleWindowPointerMove)
       window.removeEventListener('pointerup', handleWindowPointerUp)
     }
-  }, [finishDrag])
+  }, [])
 
   useEffect(() => {
     const previousCursor = document.body.style.cursor
@@ -221,6 +252,7 @@ export default function LocalHand({
     }
 
     dragStateRef.current = null
+    setActiveDragState(null)
     setDraggingCardId(null)
     updateIsDraggingOverHandArea(true)
     updateDragOffset([0, 0, 0])
@@ -248,7 +280,7 @@ export default function LocalHand({
       tableDragPlane,
     )?.clone() ?? tableStartPosition.clone()
 
-    dragStateRef.current = {
+    const nextDragState = {
       cardId: card.id,
       startX: event.nativeEvent.clientX,
       startY: event.nativeEvent.clientY,
@@ -260,6 +292,8 @@ export default function LocalHand({
       tableDragPlane,
       moved: false,
     }
+    dragStateRef.current = nextDragState
+    setActiveDragState(nextDragState)
     updateIsDraggingOverHandArea(true)
   }
 
@@ -396,7 +430,7 @@ export default function LocalHand({
         const interactionOffsetX = isLastCard ? 0 : -visibleOverlap / 2
         const isPuttingDown = puttingDownCardIds.has(card.id)
         const isDragging = draggingCardId === card.id
-        const isOptimisticDrawCard = card.id.startsWith(OPTIMISTIC_DRAW_CARD_ID_PREFIX)
+        const isHidden = hiddenCardIds.has(card.id)
         const closeUpZOffset = isCloseUp ? LOCAL_HAND_CLOSEUP_Z_OFFSET : 0
         const targetRotation: [number, number, number] = [isHandPresentationActive ? -0.42 : -1.08, 0, 0]
         const isDraggingFlatOnTable = isDragging && !isDraggingOverHandArea
@@ -404,10 +438,9 @@ export default function LocalHand({
         const targetPosition: [number, number, number] = isGatheringForSort
           ? [0, 2.22 + index * 0.012, localHandBaseZ + closeUpZOffset - index * 0.008]
           : [x, 2.05, localHandBaseZ + closeUpZOffset]
-        const dragState = dragStateRef.current
-        const resolvedPosition: [number, number, number] = isDragging && dragState?.cardId === card.id
+        const resolvedPosition: [number, number, number] = isDragging && activeDragState?.cardId === card.id
           ? (() => {
-            const startPosition = isDraggingOverHandArea ? dragState.handStartPosition : dragState.tableStartPosition
+            const startPosition = isDraggingOverHandArea ? activeDragState.handStartPosition : activeDragState.tableStartPosition
 
             return [
               startPosition.x + dragOffset[0],
@@ -424,7 +457,7 @@ export default function LocalHand({
           <group key={card.id}>
             <CardMesh
               card={card}
-              hidden={isOptimisticDrawCard}
+              hidden={isHidden}
               position={resolvedPosition}
               rotation={resolvedRotation}
               animateFrom={isDragging ? undefined : animateFrom}
@@ -439,7 +472,7 @@ export default function LocalHand({
               opacity={isPuttingDown ? 0 : 1}
               scale={isPuttingDown ? 0.62 : 1}
             />
-            {!isPuttingDown && !isOptimisticDrawCard ? (
+            {!isPuttingDown && !isHidden ? (
               <mesh
                 position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
                 rotation={targetRotation}
