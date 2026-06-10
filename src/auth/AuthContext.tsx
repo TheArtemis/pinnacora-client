@@ -43,10 +43,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser)
-      setLoading(false)
+    let cancelled = false
+
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      void (async () => {
+        if (nextUser) {
+          try {
+            await syncBackendUser(nextUser)
+          } catch (error) {
+            console.error('Failed to sync backend user:', error)
+          }
+        }
+
+        if (!cancelled) {
+          setUser(nextUser)
+          setLoading(false)
+        }
+      })()
     })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(
