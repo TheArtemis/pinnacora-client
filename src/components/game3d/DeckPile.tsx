@@ -112,11 +112,11 @@ export function DeckDrawArrow({ visible }: { visible: boolean }) {
     <group position={[deckPosition.x, 0, deckPosition.z - 0.08]}>
       <mesh ref={arrowRef} position={[0, 1.44, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.28, 0.68, 32]} />
-        <meshStandardMaterial color="#2563eb" emissive="#1d4ed8" emissiveIntensity={0.24} roughness={0.42} />
+        <meshStandardMaterial color="#eab308" emissive="#ca8a04" emissiveIntensity={0.24} roughness={0.42} />
       </mesh>
       <mesh position={[0, 0.76, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.4, 0.54, 32]} />
-        <meshStandardMaterial color="#2563eb" transparent opacity={0.42} />
+        <meshStandardMaterial color="#eab308" transparent opacity={0.42} />
       </mesh>
     </group>
   )

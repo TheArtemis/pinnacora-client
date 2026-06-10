@@ -65,6 +65,11 @@ export default function GameTableScene(props: GameTableSceneProps) {
     handleLocalHandFocusChange(false)
   }, [handleLocalHandFocusChange, updateLowerCanvasFocus])
 
+  const showSortActions = !props.handHoverCameraFocusEnabled || isSceneCloseUp
+  const sortActionsClassName = props.handHoverCameraFocusEnabled
+    ? 'game-scene__sort-actions'
+    : 'game-scene__sort-actions game-scene__sort-actions--bottom-right'
+
   return (
     <div
       className="game-scene"
@@ -101,8 +106,8 @@ export default function GameTableScene(props: GameTableSceneProps) {
           <strong>{opponent?.handCount ?? 0} backs</strong>
         </div>
       </div>
-      {isSceneCloseUp ? (
-        <div className="game-scene__sort-actions" aria-label="Hand sorting">
+      {showSortActions ? (
+        <div className={sortActionsClassName} aria-label="Hand sorting">
           <button
             type="button"
             className={props.handSortMode === 'suit' ? 'secondary-button secondary-button--active' : 'secondary-button'}
