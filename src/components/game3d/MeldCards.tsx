@@ -3,7 +3,7 @@ import { getMeldPoints } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
 import { emptyMelds, localHandBaseZ, localMeldInteractionY, tableCardBaseY } from './constants'
-import { localPlayerId } from './layout'
+import { localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
 import PointsBurst from './PointsBurst'
 
 const rankOrder: Record<ServerGameState['melds'][number]['cards'][number]['rank'], number> = {
@@ -170,11 +170,23 @@ export default function MeldCards({
         const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -6.15]
         const visibleCards = meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
         const visibleMeldCardIds = visibleCards.map(({ card }) => `${meld.id}-${card.id}`).reverse()
+        const meldHasJoker = visibleCards.some(({ card }) => isJoker(card))
+        const usesCompactSequenceLayout = sequenceMeldUsesCompactLayout(
+          meld.type,
+          visibleCards.length,
+          meldHasJoker,
+          isComplete,
+        )
         const cardSpacing = isComplete
           ? CARD_HEIGHT * 0.14
-          : meld.type === 'sequence' ? CARD_HEIGHT * 0.5 : CARD_HEIGHT * 0.42
+          : usesCompactSequenceLayout
+            ? CARD_HEIGHT * MELOD_SEQUENCE_SLOT_SPACING_FACTOR
+            : meld.type === 'sequence'
+              ? CARD_HEIGHT * 0.5
+              : CARD_HEIGHT * 0.42
         const zDirection = isLocalMeld ? -1 : 1
-        const burstZ = startZ + ((visibleCards.length - 1) * cardSpacing * zDirection) / 2
+        const visibleSlotCount = sequenceMeldVisibleSlotCount(visibleCards.length, usesCompactSequenceLayout)
+        const burstZ = startZ + ((visibleSlotCount - 1) * cardSpacing * zDirection) / 2
         const showPointBurst = activePointBurstMeldIds.has(meld.id)
 
         return (
@@ -214,6 +226,9 @@ export default function MeldCards({
               const hasAttachInteraction = isOwnMeldAttachTarget || isDraggedOwnMeldAttachTarget
               const hasPointerInteraction =
                 isClickableJoker || isDraggedSwappableJoker || hasAttachInteraction
+              const { slotIndex, stackLayer } = sequenceMeldCardSlot(originalIndex, visibleCards.length)
+              const resolvedSlotIndex = usesCompactSequenceLayout ? slotIndex : visibleCardIndex
+              const middleStackOffset = usesCompactSequenceLayout && stackLayer > 0 ? stackLayer * MELOD_SEQUENCE_MIDDLE_STACK_OFFSET : 0
 
               return (
                 <CardMesh
@@ -222,12 +237,16 @@ export default function MeldCards({
                   position={[
                     startX,
                     interactionY,
-                    startZ + visibleCardIndex * cardSpacing * zDirection + jokerSwapZLift,
+                    startZ + resolvedSlotIndex * cardSpacing * zDirection + middleStackOffset * zDirection + jokerSwapZLift,
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
                   scale={isComplete ? COMPLETED_MELD_SCALE : 1}
-                  renderOrder={isOwnMeldInteractionTarget ? 120 + visibleCardIndex : 0}
+                  renderOrder={
+                    isOwnMeldInteractionTarget
+                      ? 120 + resolvedSlotIndex * 10 + stackLayer
+                      : resolvedSlotIndex * 10 + stackLayer
+                  }
                   layerOnTop={isOwnMeldInteractionTarget}
                   selected={isHighlightedTarget}
                   hovered={

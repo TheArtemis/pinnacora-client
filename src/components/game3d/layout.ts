@@ -67,3 +67,45 @@ export function cardTopFanYOffset({
 
   return topArcDrop + topEdgeCompensation
 }
+
+export const MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS = 3
+export const MELOD_SEQUENCE_SLOT_SPACING_FACTOR = 0.48
+export const MELOD_SEQUENCE_MIDDLE_STACK_OFFSET = 0.018
+
+export function sequenceMeldUsesCompactLayout(
+  meldType: 'sequence' | 'set',
+  cardCount: number,
+  hasJoker: boolean,
+  isComplete: boolean,
+) {
+  return (
+    meldType === 'sequence' &&
+    !hasJoker &&
+    !isComplete &&
+    cardCount > MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS
+  )
+}
+
+export function sequenceMeldCardSlot(originalIndex: number, cardCount: number) {
+  if (cardCount <= MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS) {
+    return { slotIndex: originalIndex, stackLayer: 0 }
+  }
+
+  if (originalIndex === 0) {
+    return { slotIndex: 0, stackLayer: 0 }
+  }
+
+  if (originalIndex === cardCount - 1) {
+    return { slotIndex: MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS - 1, stackLayer: 0 }
+  }
+
+  return { slotIndex: 1, stackLayer: originalIndex - 1 }
+}
+
+export function sequenceMeldVisibleSlotCount(cardCount: number, usesCompactLayout: boolean) {
+  if (!usesCompactLayout) {
+    return cardCount
+  }
+
+  return Math.min(MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS, cardCount)
+}
