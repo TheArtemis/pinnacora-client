@@ -195,12 +195,24 @@ export default function LocalHand({
       finishDragRef.current()
     }
 
+    function handleWindowPointerCancel() {
+      finishDragRef.current()
+    }
+
+    function handleWindowBlur() {
+      finishDragRef.current()
+    }
+
     window.addEventListener('pointermove', handleWindowPointerMove)
     window.addEventListener('pointerup', handleWindowPointerUp)
+    window.addEventListener('pointercancel', handleWindowPointerCancel)
+    window.addEventListener('blur', handleWindowBlur)
 
     return () => {
       window.removeEventListener('pointermove', handleWindowPointerMove)
       window.removeEventListener('pointerup', handleWindowPointerUp)
+      window.removeEventListener('pointercancel', handleWindowPointerCancel)
+      window.removeEventListener('blur', handleWindowBlur)
     }
   }, [])
 

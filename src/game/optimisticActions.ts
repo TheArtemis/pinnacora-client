@@ -1,5 +1,5 @@
 import type { Card } from './cardTypes'
-import { canAddCardToMeld, canAttachCardToOwnMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
+import { canAddCardToMeld, canAttachCardToOwnMeld, buildDiscardPilePickupMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
 import { calculateMeldPoints } from './scoring'
 import type { ServerGameState } from './serverTypes'
 
@@ -204,8 +204,6 @@ function projectPickUpDiscardPile(
   }
 
   const requiredDiscardCard = state.discardPile[cardIndex]
-  const pickedUpCards = state.discardPile.slice(cardIndex)
-  const cardsAddedToHand = pickedUpCards.slice(1)
   const chosenHandCards = meldCardIds
     .map((cardId) => currentHand.find((card) => card.id === cardId))
     .filter((card): card is Card => Boolean(card))
@@ -213,9 +211,15 @@ function projectPickUpDiscardPile(
     return null
   }
 
+  const resolvedNewMeld = buildDiscardPilePickupMeld(state.discardPile, cardIndex, chosenHandCards)
+
+  if (!resolvedNewMeld) {
+    return null
+  }
+
   const nextHandCards = [
     ...currentHand.filter((card) => !uniqueMeldCardIds.has(card.id)),
-    ...cardsAddedToHand,
+    ...resolvedNewMeld.cardsAddedToHand,
   ]
 
   const baseState = {
@@ -297,21 +301,20 @@ function projectPickUpDiscardPile(
     }, playerId)
   }
 
-  const meldCards = [requiredDiscardCard, ...chosenHandCards]
-  const meldType = getMeldType(meldCards)
+  const meldType = getMeldType(resolvedNewMeld.meldCards)
 
   if (!meldType) {
     return null
   }
 
-  const sortedMeldCards = sortMeldCards(meldCards, meldType)
+  const sortedMeldCards = sortMeldCards(resolvedNewMeld.meldCards, meldType)
 
   return maybeFinishGame({
     ...baseState,
     melds: [
       ...state.melds,
       {
-        id: `${playerId}-${state.melds.length + 1}-${[requiredDiscardCard.id, ...meldCardIds].join('-')}`,
+        id: `${playerId}-${state.melds.length + 1}-${resolvedNewMeld.meldCards.map((card) => card.id).join('-')}`,
         playerId,
         type: meldType,
         cards: sortedMeldCards,

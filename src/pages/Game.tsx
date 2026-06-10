@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
-import { canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, validateMeld } from '../game/melds'
+import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
 import {
   createAttachToMeldAction,
   createDiscardCardAction,
@@ -262,15 +262,22 @@ export default function Game() {
 
     return jokerIds
   }, [canPickUpDiscardPile, discardPileCombinationCard, serverState?.melds])
+  const discardPilePickupPlan = useMemo(() => {
+    if (!canPickUpDiscardPile || discardPileHighlightStartIndex === null) {
+      return null
+    }
+
+    return buildDiscardPilePickupMeld(discardPile, discardPileHighlightStartIndex, selectedMeldCards)
+  }, [canPickUpDiscardPile, discardPile, discardPileHighlightStartIndex, selectedMeldCards])
   const hasDiscardPileTablePickupTarget = discardPileMeldTargetIds.size > 0 || discardPileJokerTargetIds.size > 0
   const discardPilePickupError =
-    canPickUpDiscardPile && discardPileCombinationCard
-      ? validateMeld([discardPileCombinationCard, ...selectedMeldCards])
+    canPickUpDiscardPile && discardPileHighlightStartIndex !== null
+      ? validateDiscardPilePickupMeld(discardPile, discardPileHighlightStartIndex, selectedMeldCards)
       : ''
   const selectedMeldType = selectedMeldError ? undefined : getMeldType(selectedMeldCards)
   const selectedMeldPoints = selectedMeldType ? calculateMeldPoints(selectedMeldCards, selectedMeldType) : 0
   const hasEnoughSelectedCombinationCards = discardPileCombinationCard
-    ? selectedMeldCards.length > 0
+    ? discardPilePickupPlan !== null
     : selectedMeldCards.length >= 3
   const isSelectedCombinationValid =
     hasEnoughSelectedCombinationCards && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
@@ -280,9 +287,11 @@ export default function Game() {
       : selectedMeldCards.length > 0
         ? (isSelectedCombinationValid ? '#15803d' : '#b91c1c')
         : undefined
-  const discardPilePickupCombination = discardPileCombinationCard
-    ? [discardPileCombinationCard, ...selectedMeldCards]
-    : selectedMeldCards
+  const discardPilePickupCombination = discardPilePickupPlan?.meldCards ?? (
+    discardPileCombinationCard
+      ? [discardPileCombinationCard, ...selectedMeldCards]
+      : selectedMeldCards
+  )
   const discardPilePickupType = discardPilePickupError ? undefined : getMeldType(discardPilePickupCombination)
   const discardPilePickupPoints = discardPilePickupType
     ? calculateMeldPoints(discardPilePickupCombination, discardPilePickupType)
@@ -428,11 +437,16 @@ export default function Game() {
       setGameError('')
     }
 
-    function handleGameError(nextError: { error?: string }) {
-      setPendingActions([])
-      setServerState(confirmedServerStateRef.current)
+    function handleGameError(nextError: { error?: string; clientActionId?: unknown }) {
+      const failedActionId = typeof nextError.clientActionId === 'string' ? nextError.clientActionId : null
+      const nextPending = failedActionId
+        ? pendingOptimisticActionsRef.current.filter((action) => action.id !== failedActionId)
+        : []
+
+      setPendingActions(nextPending)
       setPuttingDownCards([])
-      setGameError(nextError.error ?? 'Could not join game')
+      setGameError(nextError.error ?? 'Could not complete game action')
+      activeSocket.emit('join_game', tournamentId ? { gameId, tournamentId } : gameId)
     }
 
     function handleGameActionAck(payload: { clientActionId?: unknown }) {
@@ -463,6 +477,14 @@ export default function Game() {
     activeSocket.on('game_action_ack', handleGameActionAck)
     activeSocket.on('game_error', handleGameError)
     activeSocket.on('opponent_hand_hover', handleOpponentHandHover)
+
+    function handleWindowFocus() {
+      if (activeSocket.connected) {
+        activeSocket.emit('join_game', tournamentId ? { gameId, tournamentId } : gameId)
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
 
     user
       .getIdToken()
@@ -498,6 +520,7 @@ export default function Game() {
       activeSocket.off('game_action_ack', handleGameActionAck)
       activeSocket.off('game_error', handleGameError)
       activeSocket.off('opponent_hand_hover', handleOpponentHandHover)
+      window.removeEventListener('focus', handleWindowFocus)
       activeSocket.emit('hover_hand_cards', { cardIndexes: [] })
       activeSocket.disconnect()
     }
@@ -530,7 +553,7 @@ export default function Game() {
 
     setSelectedDiscardPileStartIndex(cardIndex)
 
-    const meldError = validateMeld([discardPile[cardIndex], ...selectedMeldCards])
+    const meldError = validateDiscardPilePickupMeld(discardPile, cardIndex, selectedMeldCards)
     const tablePickupTargets = serverState?.melds.flatMap((meld): DiscardPilePickupTarget[] => {
       const targets: DiscardPilePickupTarget[] = []
 
@@ -604,11 +627,16 @@ export default function Game() {
       return
     }
 
-    setSelectedCardId(cardId)
     setGameError('')
     setSelectedMeldCardIds([])
     const action = createDiscardCardAction(cardId)
-    applyOptimisticAction(action)
+
+    if (!applyOptimisticAction(action)) {
+      setGameError('Cannot discard right now.')
+      return
+    }
+
+    setSelectedCardId(null)
     socket.emit('discard_card', { clientActionId: action.id, cardId })
   }
 

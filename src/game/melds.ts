@@ -156,6 +156,63 @@ function sortSequenceCards(cards: Card[]) {
   return sortedCards
 }
 
+export type DiscardPilePickupMeldPlan = {
+  meldCards: Card[]
+  cardsAddedToHand: Card[]
+}
+
+export function buildDiscardPilePickupMeld(
+  discardPile: Card[],
+  cardIndex: number,
+  handCards: Card[],
+): DiscardPilePickupMeldPlan | null {
+  const pickedUpCards = discardPile.slice(cardIndex)
+
+  if (pickedUpCards.length === 0) {
+    return null
+  }
+
+  const meldWithAllPickedCards = [...pickedUpCards, ...handCards]
+
+  if (getMeldType(meldWithAllPickedCards)) {
+    return {
+      meldCards: meldWithAllPickedCards,
+      cardsAddedToHand: [],
+    }
+  }
+
+  const [requiredDiscardCard] = pickedUpCards
+  const meldWithRequiredDiscardCard = [requiredDiscardCard, ...handCards]
+
+  if (!getMeldType(meldWithRequiredDiscardCard)) {
+    return null
+  }
+
+  return {
+    meldCards: meldWithRequiredDiscardCard,
+    cardsAddedToHand: pickedUpCards.slice(1),
+  }
+}
+
+export function validateDiscardPilePickupMeld(
+  discardPile: Card[],
+  cardIndex: number,
+  handCards: Card[],
+) {
+  if (buildDiscardPilePickupMeld(discardPile, cardIndex, handCards)) {
+    return ''
+  }
+
+  const pickedUpCards = discardPile.slice(cardIndex)
+  const meldError = validateMeld([...pickedUpCards, ...handCards])
+
+  if (meldError && pickedUpCards[0]) {
+    return validateMeld([pickedUpCards[0], ...handCards]) || meldError
+  }
+
+  return meldError
+}
+
 export function validateMeld(cards: Card[]) {
   if (cards.length < 3) {
     return 'Choose at least three cards for a combination.'

@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
 import { canAttachCardToOwnMeld, canReplaceMeldJoker } from '../../game/melds'
 import CameraRig from './CameraRig'
@@ -109,6 +109,18 @@ export default function SceneContent(props: SceneContentProps) {
   }, [draggedSwappableMeldJokerIds, props.state?.melds, props.swappableMeldJokerIds, viewerPlayerId])
   const passthroughHandInteractionForOwnJokerSwap =
     ownSwappableMeldJokerIds.size > 0 || ownMeldAttachTargetIdsOnTable.size > 0
+  const isHandCardDragging = draggedHandCardId !== null
+
+  useEffect(() => {
+    if (props.canDiscard) {
+      return
+    }
+
+    setDraggedHandCardId(null)
+    isDiscardDropTargetHoveredRef.current = false
+    meldJokerDropTargetRef.current = null
+    meldAttachDropTargetRef.current = null
+  }, [props.canDiscard])
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -133,21 +145,25 @@ export default function SceneContent(props: SceneContentProps) {
   }
 
   function handleHandCardDragEnd(cardId: string) {
-    if (meldJokerDropTargetRef.current && props.canDiscard) {
-      props.onMeldJokerDrop(
-        meldJokerDropTargetRef.current.meldId,
-        meldJokerDropTargetRef.current.jokerCardId,
-        cardId,
-      )
-    } else if (meldAttachDropTargetRef.current && props.canDiscard) {
-      props.onAttachToMeldDrop(meldAttachDropTargetRef.current, cardId)
-    } else if (isDiscardDropTargetHoveredRef.current && props.canDiscard) {
-      props.onDiscardHandCard(cardId)
-    }
+    const meldJokerDropTarget = meldJokerDropTargetRef.current
+    const meldAttachDropTarget = meldAttachDropTargetRef.current
+    const isDiscardDropTargetHovered = isDiscardDropTargetHoveredRef.current
 
     isDiscardDropTargetHoveredRef.current = false
     meldJokerDropTargetRef.current = null
     meldAttachDropTargetRef.current = null
+
+    if (!props.canDiscard) {
+      return
+    }
+
+    if (meldJokerDropTarget) {
+      props.onMeldJokerDrop(meldJokerDropTarget.meldId, meldJokerDropTarget.jokerCardId, cardId)
+    } else if (meldAttachDropTarget) {
+      props.onAttachToMeldDrop(meldAttachDropTarget, cardId)
+    } else if (isDiscardDropTargetHovered) {
+      props.onDiscardHandCard(cardId)
+    }
   }
 
   return (
@@ -171,7 +187,7 @@ export default function SceneContent(props: SceneContentProps) {
           discardPileHighlightStartIndex={props.discardPileHighlightStartIndex}
           onDiscardPileCardClick={props.onDiscardPileCardClick}
           onDiscardPileCardHover={props.onDiscardPileCardHover}
-          draggedHandCardId={draggedHandCardId}
+          isHandCardDragging={isHandCardDragging}
           onDiscardDropTargetChange={(isHovered) => {
             isDiscardDropTargetHoveredRef.current = isHovered
           }}

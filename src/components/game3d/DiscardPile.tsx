@@ -19,7 +19,7 @@ type DiscardPileProps = Pick<
   | 'onDiscardSelectedCard'
 > & {
   cards: CardType[]
-  draggedHandCardId: string | null
+  isHandCardDragging: boolean
   onDiscardDropTargetChange: (isHovered: boolean) => void
 }
 
@@ -30,7 +30,7 @@ export default function DiscardPile({
   discardPileHighlightStartIndex,
   onDiscardPileCardClick,
   onDiscardPileCardHover,
-  draggedHandCardId,
+  isHandCardDragging,
   onDiscardDropTargetChange,
   onDiscardSelectedCard,
 }: DiscardPileProps) {
@@ -39,7 +39,7 @@ export default function DiscardPile({
   const cardMembershipKey = cards.map((card) => card.id).join('|')
   const cardSpread = Math.max(0.28, Math.min(0.5, (DISCARD_AREA_WIDTH - CARD_WIDTH) / Math.max(cards.length - 1, 1)))
   const discardCardY = tableCardBaseY + 0.018
-  const canDropDraggedCard = canDiscard && Boolean(draggedHandCardId)
+  const canDropDraggedCard = canDiscard && isHandCardDragging
   const firstCardX = DISCARD_AREA_X - (Math.max(cards.length - 1, 0) * cardSpread) / 2
 
   useLayoutEffect(() => {
