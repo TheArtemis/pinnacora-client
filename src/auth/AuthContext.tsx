@@ -11,15 +11,16 @@ import {
 } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from './firebase'
+import { getApiUrl } from '../config/api'
 import { AuthContext, type AuthContextValue } from './authState'
 import { socket } from '../socket'
 
 const googleProvider = new GoogleAuthProvider()
 
-const apiUrl = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL
+const apiUrl = getApiUrl()
 
 async function syncBackendUser(user: User, displayName?: string) {
-  const token = await user.getIdToken()
+  const token = await user.getIdToken(true)
 
   const response = await fetch(`${apiUrl}/users`, {
     method: 'POST',

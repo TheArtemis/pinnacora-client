@@ -1,6 +1,7 @@
 import type { User } from 'firebase/auth'
+import { getApiUrl } from '../config/api'
 
-const apiUrl = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000'
+const apiUrl = getApiUrl()
 
 export type TournamentStatus = 'ACTIVE' | 'COMPLETED'
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED'
@@ -63,7 +64,7 @@ function getErrorMessage(payload: unknown) {
 }
 
 async function apiRequest<T>(user: User, path: string, options: RequestOptions = {}) {
-  const token = await user.getIdToken()
+  const token = await user.getIdToken(true)
   const response = await fetch(`${apiUrl}${path}`, {
     method: options.method ?? 'GET',
     headers: {
