@@ -45,6 +45,7 @@ type LocalHandProps = Pick<
   onHandCardDragChange: (cardId: string | null) => void
   onHandCardDragEnd: (cardId: string) => void
   passthroughInteractionForOwnJokerSwap?: boolean
+  passthroughUnselectedHandCards?: boolean
 }
 
 export default function LocalHand({
@@ -63,6 +64,7 @@ export default function LocalHand({
   onHandCardDragEnd,
   onHandCardHover,
   passthroughInteractionForOwnJokerSwap = false,
+  passthroughUnselectedHandCards = false,
 }: LocalHandProps) {
   const { camera, gl } = useThree()
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
@@ -185,6 +187,20 @@ export default function LocalHand({
       finishDragRef.current()
     }
   }, [draggingCardId, hiddenCardMembershipKey, puttingDownCardIds])
+
+  const selectedCardKey = [...selectedCardIds].sort().join('|')
+
+  useEffect(() => {
+    if (selectedCardIds.size === 0 && (dragStateRef.current || draggingCardId)) {
+      finishDragRef.current()
+    }
+  }, [draggingCardId, selectedCardIds.size, selectedCardKey])
+
+  useEffect(() => {
+    return () => {
+      onHandCardDragChange(null)
+    }
+  }, [onHandCardDragChange])
 
   useEffect(() => {
     function handleWindowPointerMove(event: PointerEvent) {
@@ -515,7 +531,11 @@ export default function LocalHand({
                 rotation={targetRotation}
                 scale={[interactionWidth, 1, 1]}
                 raycast={
-                  passthroughInteractionForOwnJokerSwap && draggingCardId && card.id !== draggingCardId
+                  (passthroughInteractionForOwnJokerSwap && draggingCardId && card.id !== draggingCardId) ||
+                    (passthroughUnselectedHandCards &&
+                      !draggingCardId &&
+                      selectedCardIds.size === 1 &&
+                      !selectedCardIds.has(card.id))
                     ? () => null
                     : undefined
                 }

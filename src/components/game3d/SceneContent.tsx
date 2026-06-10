@@ -111,16 +111,33 @@ export default function SceneContent(props: SceneContentProps) {
     ownSwappableMeldJokerIds.size > 0 || ownMeldAttachTargetIdsOnTable.size > 0
   const isHandCardDragging = draggedHandCardId !== null
 
+  function clearHandDragState() {
+    setDraggedHandCardId(null)
+    isDiscardDropTargetHoveredRef.current = false
+    meldJokerDropTargetRef.current = null
+    meldAttachDropTargetRef.current = null
+  }
+
+  const handCardIdsKey = props.hand.map((card) => card.id).join('|')
+  const ownMeldAttachTargetKey = [...props.ownMeldAttachTargetIds].sort().join('|')
+
   useEffect(() => {
     if (props.canDiscard) {
       return
     }
 
-    setDraggedHandCardId(null)
-    isDiscardDropTargetHoveredRef.current = false
-    meldJokerDropTargetRef.current = null
-    meldAttachDropTargetRef.current = null
+    clearHandDragState()
   }, [props.canDiscard])
+
+  useEffect(() => {
+    clearHandDragState()
+  }, [handCardIdsKey])
+
+  useEffect(() => {
+    if (props.ownMeldAttachTargetIds.size === 0) {
+      clearHandDragState()
+    }
+  }, [ownMeldAttachTargetKey, props.ownMeldAttachTargetIds.size])
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -149,9 +166,7 @@ export default function SceneContent(props: SceneContentProps) {
     const meldAttachDropTarget = meldAttachDropTargetRef.current
     const isDiscardDropTargetHovered = isDiscardDropTargetHoveredRef.current
 
-    isDiscardDropTargetHoveredRef.current = false
-    meldJokerDropTargetRef.current = null
-    meldAttachDropTargetRef.current = null
+    clearHandDragState()
 
     if (!props.canDiscard) {
       return
@@ -231,6 +246,7 @@ export default function SceneContent(props: SceneContentProps) {
         onHandCardDragEnd={handleHandCardDragEnd}
         onHandCardHover={props.onHandCardHover}
         passthroughInteractionForOwnJokerSwap={passthroughHandInteractionForOwnJokerSwap}
+        passthroughUnselectedHandCards={props.ownMeldAttachTargetIds.size > 0}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
     </>

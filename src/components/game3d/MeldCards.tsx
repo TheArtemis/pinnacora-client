@@ -204,16 +204,10 @@ export default function MeldCards({
               const isOwnMeldAttachTarget = isLocalMeld && ownMeldAttachTargetIds.has(meld.id)
               const isDraggedOwnMeldAttachTarget = isLocalMeld && draggedOwnMeldAttachTargetIds.has(meld.id)
               const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
-              const isOwnMeldInteractionTarget =
-                isLocalMeld &&
-                (isSwappableJoker ||
-                  isDraggedSwappableJoker ||
-                  isDiscardPileJokerTarget ||
-                  isOwnMeldAttachTarget ||
-                  isDraggedOwnMeldAttachTarget ||
-                  isDiscardPileMeldTarget)
-              const jokerSwapZLift = isOwnMeldInteractionTarget ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
-              const interactionY = isOwnMeldInteractionTarget
+              const shouldElevateMeldAboveHand =
+                isLocalMeld && (isDraggedSwappableJoker || isDraggedOwnMeldAttachTarget)
+              const jokerSwapZLift = shouldElevateMeldAboveHand ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
+              const interactionY = shouldElevateMeldAboveHand
                 ? localMeldInteractionY + originalIndex * 0.006
                 : tableCardBaseY + originalIndex * 0.006
               const isHighlightedTarget =
@@ -243,11 +237,11 @@ export default function MeldCards({
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
                   scale={isComplete ? COMPLETED_MELD_SCALE : 1}
                   renderOrder={
-                    isOwnMeldInteractionTarget
+                    shouldElevateMeldAboveHand
                       ? 120 + resolvedSlotIndex * 10 + stackLayer
                       : resolvedSlotIndex * 10 + stackLayer
                   }
-                  layerOnTop={isOwnMeldInteractionTarget}
+                  layerOnTop={shouldElevateMeldAboveHand}
                   selected={isHighlightedTarget}
                   hovered={
                     isHoveredJoker ||
