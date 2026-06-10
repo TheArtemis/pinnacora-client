@@ -27,7 +27,7 @@ export const deckPosition = {
   z: -0.4,
 }
 
-export const localHandBaseZ = 8
+export const localHandBaseZ = 9.75
 export const tableCardBaseY = 0.14
 /** Lift own meld cards to hand height so clicks reach them without disabling hand selection. */
 export const localMeldInteractionY = 2.22

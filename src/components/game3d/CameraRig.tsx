@@ -27,7 +27,7 @@ export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRi
     const isTallView = aspectRatio < 0.9
     const targetCameraX = 0
     const targetCameraY = focusLocalHand ? 7.4 : focusMiddleTable ? (isTallView ? 18 : 15.5) : isTallView ? 24 : 21.5
-    const targetCameraZ = focusLocalHand ? 13.4 : focusMiddleTable ? -0.45 : isTallView ? 11 : 10
+    const targetCameraZ = focusLocalHand ? 14.2 : focusMiddleTable ? -0.45 : isTallView ? 11 : 10
     const targetLookX = 0
     const targetLookY = focusLocalHand ? 1.35 : 0
     const targetLookZ = focusLocalHand ? localHandBaseZ - 0.5 : focusMiddleTable ? -0.45 : 0
