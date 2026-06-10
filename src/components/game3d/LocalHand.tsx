@@ -165,6 +165,28 @@ export default function LocalHand({
   })
 
   useEffect(() => {
+    const dragState = dragStateRef.current
+
+    if (!dragState) {
+      return
+    }
+
+    if (!cards.some((card) => card.id === dragState.cardId)) {
+      finishDragRef.current()
+    }
+  }, [cardMembershipKey, cards])
+
+  useEffect(() => {
+    if (!draggingCardId) {
+      return
+    }
+
+    if (hiddenCardIds.has(draggingCardId) || puttingDownCardIds.has(draggingCardId)) {
+      finishDragRef.current()
+    }
+  }, [draggingCardId, hiddenCardMembershipKey, puttingDownCardIds])
+
+  useEffect(() => {
     function handleWindowPointerMove(event: PointerEvent) {
       updateDragStateFromCoordinatesRef.current(event.clientX, event.clientY)
     }
@@ -481,8 +503,7 @@ export default function LocalHand({
                 rotation={targetRotation}
                 scale={[interactionWidth, 1, 1]}
                 raycast={
-                  passthroughInteractionForOwnJokerSwap &&
-                    (draggingCardId ? card.id !== draggingCardId : !selectedCardIds.has(card.id))
+                  passthroughInteractionForOwnJokerSwap && draggingCardId && card.id !== draggingCardId
                     ? () => null
                     : undefined
                 }

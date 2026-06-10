@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMeldPoints } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
-import { emptyMelds, localHandBaseZ, tableCardBaseY } from './constants'
+import { emptyMelds, localHandBaseZ, localMeldInteractionY, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
 import PointsBurst from './PointsBurst'
 
@@ -201,6 +201,9 @@ export default function MeldCards({
                   isDraggedOwnMeldAttachTarget ||
                   isDiscardPileMeldTarget)
               const jokerSwapZLift = isOwnMeldInteractionTarget ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
+              const interactionY = isOwnMeldInteractionTarget
+                ? localMeldInteractionY + originalIndex * 0.006
+                : tableCardBaseY + originalIndex * 0.006
               const isHighlightedTarget =
                 isSwappableJoker ||
                 isDraggedSwappableJoker ||
@@ -218,7 +221,7 @@ export default function MeldCards({
                   key={meldCardId}
                   position={[
                     startX,
-                    tableCardBaseY + originalIndex * 0.006,
+                    interactionY,
                     startZ + visibleCardIndex * cardSpacing * zDirection + jokerSwapZLift,
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}
