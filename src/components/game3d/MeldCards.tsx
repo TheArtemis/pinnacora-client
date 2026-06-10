@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMeldPoints } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
-import { emptyMelds, localHandBaseZ, localMeldInteractionY, tableCardBaseY } from './constants'
+import { emptyMelds, localHandBaseZ, localMeldInteractionY, MELD_LAYOUT, tableCardBaseY } from './constants'
 import { localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
 import PointsBurst from './PointsBurst'
 
@@ -22,7 +22,6 @@ const rankOrder: Record<ServerGameState['melds'][number]['cards'][number]['rank'
   K: 13,
   JOKER: 0,
 }
-const COMPLETED_MELD_X = 8.85
 const COMPLETED_MELD_SCALE = 0.72
 const LOCAL_MELD_JOKER_SWAP_Z_LIFT = 2.85
 
@@ -159,15 +158,23 @@ export default function MeldCards({
         ownerIndexes.set(meld.playerId, ownerMeldIndex + 1)
         const isLocalMeld = meld.playerId === viewerPlayerId
         const ownerMeldCount = (isComplete ? ownerCompleteMeldCounts : ownerMeldCounts).get(meld.playerId) ?? 1
-        const maxColumnsPerRow = isComplete ? 1 : 6
+        const maxColumnsPerRow = isComplete ? 1 : MELD_LAYOUT.maxColumnsPerRow
         const row = Math.floor(ownerMeldIndex / maxColumnsPerRow)
         const column = ownerMeldIndex % maxColumnsPerRow
         const columnsInRow = Math.min(maxColumnsPerRow, ownerMeldCount - row * maxColumnsPerRow)
-        const startX = isComplete ? COMPLETED_MELD_X : (column - (columnsInRow - 1) / 2) * 2.96
+        const startX = isComplete
+          ? MELD_LAYOUT.completedX
+          : (column - (columnsInRow - 1) / 2) * MELD_LAYOUT.columnSpacing
         const startZ = isComplete
-          ? (isLocalMeld ? 6.1 - row * 1.28 : -6.1 + row * 1.28)
-          : isLocalMeld ? 5.58 - row * 3.12 : -5.58 + row * 3.12
-        const animateFrom: [number, number, number] = isLocalMeld ? [0, 2.18, localHandBaseZ] : [0, 2.1, -6.15]
+          ? (isLocalMeld
+            ? MELD_LAYOUT.localBaseZ + 0.1 - row * MELD_LAYOUT.completedRowSpacing
+            : MELD_LAYOUT.opponentBaseZ - 0.1 + row * MELD_LAYOUT.completedRowSpacing)
+          : isLocalMeld
+            ? MELD_LAYOUT.localBaseZ - row * MELD_LAYOUT.rowSpacing
+            : MELD_LAYOUT.opponentBaseZ + row * MELD_LAYOUT.rowSpacing
+        const animateFrom: [number, number, number] = isLocalMeld
+          ? [0, 2.18, localHandBaseZ]
+          : [0, 2.1, MELD_LAYOUT.opponentBaseZ - 0.15]
         const visibleCards = meld.cards.map((card, originalIndex) => ({ card, originalIndex }))
         const visibleMeldCardIds = visibleCards.map(({ card }) => `${meld.id}-${card.id}`).reverse()
         const meldHasJoker = visibleCards.some(({ card }) => isJoker(card))

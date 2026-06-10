@@ -18,7 +18,7 @@ export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRi
     const aspectRatio = size.width / Math.max(size.height, 1)
     const isTallView = aspectRatio < 0.9
 
-    camera.position.set(0, isTallView ? 22 : 19, isTallView ? 9.5 : 8)
+    camera.position.set(0, isTallView ? 24 : 21.5, isTallView ? 11 : 10)
     camera.lookAt(0, 0, 0)
   }, [camera, size.height, size.width])
 
@@ -26,8 +26,8 @@ export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRi
     const aspectRatio = size.width / Math.max(size.height, 1)
     const isTallView = aspectRatio < 0.9
     const targetCameraX = 0
-    const targetCameraY = focusLocalHand ? 7.4 : focusMiddleTable ? (isTallView ? 16.4 : 13.8) : isTallView ? 22 : 19
-    const targetCameraZ = focusLocalHand ? 13.4 : focusMiddleTable ? -0.45 : isTallView ? 9.5 : 8
+    const targetCameraY = focusLocalHand ? 7.4 : focusMiddleTable ? (isTallView ? 18 : 15.5) : isTallView ? 24 : 21.5
+    const targetCameraZ = focusLocalHand ? 13.4 : focusMiddleTable ? -0.45 : isTallView ? 11 : 10
     const targetLookX = 0
     const targetLookY = focusLocalHand ? 1.35 : 0
     const targetLookZ = focusLocalHand ? localHandBaseZ - 0.5 : focusMiddleTable ? -0.45 : 0

@@ -4,7 +4,7 @@ import { localPlayerId } from './layout'
 import SceneContent from './SceneContent'
 import type { GameTableSceneProps } from './types'
 
-const cameraSettings = { position: [0, 19, 8] as [number, number, number], fov: 49 }
+const cameraSettings = { position: [0, 21.5, 10] as [number, number, number], fov: 51 }
 const glSettings = { antialias: true, powerPreference: 'high-performance' as const }
 
 export default function GameTableScene(props: GameTableSceneProps) {
