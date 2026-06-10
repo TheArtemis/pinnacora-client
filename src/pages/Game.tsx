@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
-import { canAddCardToMeld, canReplaceMeldJoker, getMeldType, validateMeld } from '../game/melds'
+import { canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, validateMeld } from '../game/melds'
 import {
+  createAttachToMeldAction,
   createDiscardCardAction,
   createDrawCardAction,
   createPickUpDiscardPileAction,
@@ -176,6 +177,20 @@ export default function Game() {
 
     return meldJokerIds
   }, [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds])
+  const ownMeldAttachTargetIds = useMemo(() => {
+    if (!canDiscard || !selectedJokerSwapReplacementCard || !serverState?.youPlayerId) {
+      return new Set<string>()
+    }
+
+    return new Set(
+      serverState.melds
+        .filter(
+          (meld) =>
+            canAttachCardToOwnMeld(meld, serverState.youPlayerId!, selectedJokerSwapReplacementCard),
+        )
+        .map((meld) => meld.id),
+    )
+  }, [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds, serverState?.youPlayerId])
   const selectedMeldError = useMemo(
     () => (selectedMeldCards.length > 0 ? validateMeld(selectedMeldCards) : ''),
     [selectedMeldCards],
@@ -261,7 +276,7 @@ export default function Game() {
     hasEnoughSelectedCombinationCards && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
   const selectedCardOutlineColor =
     selectedMeldCards.length === 1
-      ? (swappableMeldJokerIds.size > 0 ? '#15803d' : undefined)
+      ? (swappableMeldJokerIds.size > 0 || ownMeldAttachTargetIds.size > 0 ? '#15803d' : undefined)
       : selectedMeldCards.length > 0
         ? (isSelectedCombinationValid ? '#15803d' : '#b91c1c')
         : undefined
@@ -315,11 +330,19 @@ export default function Game() {
           return 'Selected joker can be discarded. Select a non-joker card to replace a table joker.'
         }
 
+        if (ownMeldAttachTargetIds.size > 0 && swappableMeldJokerIds.size > 0) {
+          return 'Click a highlighted combination of yours to attach this card, click a joker to swap it, or discard.'
+        }
+
+        if (ownMeldAttachTargetIds.size > 0) {
+          return 'Click a highlighted combination of yours to attach this card, click the discard pile to discard, or select more cards for a new combination.'
+        }
+
         if (swappableMeldJokerIds.size > 0) {
           return 'Click a highlighted joker on the table (yours or your opponent\'s) to swap it, click the discard pile to discard, or select more cards for a combination.'
         }
 
-        return 'Selected card can be discarded. It cannot replace any table joker right now.'
+        return 'Selected card can be discarded. It cannot attach to or replace any table combination right now.'
       }
 
       if (selectedMeldCards.length > 0) {
@@ -328,7 +351,7 @@ export default function Game() {
           : `Selected combination is worth ${selectedMeldPoints} points.`
       }
 
-      return 'Select one hand card to discard or swap for a table joker, or select three or more cards to put down a combination.'
+      return 'Select one hand card to discard, attach to one of your combinations, swap for a table joker, or select three or more cards to put down a combination.'
     }
 
     return statusText(serverState)
@@ -347,6 +370,7 @@ export default function Game() {
     selectedMeldCards.length,
     selectedMeldError,
     selectedMeldPoints,
+    ownMeldAttachTargetIds.size,
     swappableMeldJokerIds.size,
   ])
 
@@ -653,6 +677,50 @@ export default function Game() {
     })
   }
 
+  function handleAttachToMeld(meldId: string) {
+    if (!canDiscard) {
+      return
+    }
+
+    if (selectedMeldCardIds.length !== 1) {
+      setGameError('Select exactly one card from your hand, then click one of your combinations.')
+      return
+    }
+
+    handleAttachToMeldWithCard(meldId, selectedMeldCardIds[0])
+  }
+
+  function handleAttachToMeldWithCard(meldId: string, cardId: string) {
+    if (!canDiscard) {
+      return
+    }
+
+    const card = hand.find((candidateCard) => candidateCard.id === cardId)
+    const meld = serverState?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+    if (!card || !meld || !serverState?.youPlayerId || !canAttachCardToOwnMeld(meld, serverState.youPlayerId, card)) {
+      setGameError('That card cannot be added to this combination.')
+      return
+    }
+
+    setGameError('')
+    setSelectedDiscardPileStartIndex(null)
+    const action = createAttachToMeldAction(meldId, cardId)
+
+    if (!applyOptimisticAction(action)) {
+      setGameError('That card cannot be attached right now.')
+      return
+    }
+
+    setSelectedCardId(null)
+    setSelectedMeldCardIds([])
+    socket.emit('attach_to_meld', {
+      clientActionId: action.id,
+      meldId,
+      cardId,
+    })
+  }
+
   function playCardSelectSound() {
     const sound = cardSelectSoundRef.current ?? new Audio(cardSelectSoundPath)
     cardSelectSoundRef.current = sound
@@ -841,6 +909,7 @@ export default function Game() {
           discardPileMeldTargetIds={discardPileMeldTargetIds}
           discardPileJokerTargetIds={discardPileJokerTargetIds}
           swappableMeldJokerIds={swappableMeldJokerIds}
+          ownMeldAttachTargetIds={ownMeldAttachTargetIds}
           tableHint={tableHint}
           handSortMode={handSortMode}
           handHoverCameraFocusEnabled={handHoverCameraFocusEnabled}
@@ -862,6 +931,8 @@ export default function Game() {
           onDiscardSelectedCard={handleDiscardSelectedCard}
           onMeldJokerClick={handleSwapMeldJoker}
           onMeldJokerDrop={handleSwapMeldJokerWithCard}
+          onAttachToMeld={handleAttachToMeld}
+          onAttachToMeldDrop={handleAttachToMeldWithCard}
           onPutDownMeld={handlePutDownMeld}
         />
       </section>

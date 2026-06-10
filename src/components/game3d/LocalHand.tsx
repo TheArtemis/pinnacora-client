@@ -39,6 +39,7 @@ type LocalHandProps = Pick<
   puttingDownCardIds: Set<string>
   isGatheringForSort: boolean
   isCloseUp: boolean
+  handHoverCameraFocusEnabled: boolean
   selectedCardOutlineColor?: string
   onHandAreaFocusChange: (isFocused: boolean) => void
   onHandCardDragChange: (cardId: string | null) => void
@@ -53,6 +54,7 @@ export default function LocalHand({
   puttingDownCardIds,
   isGatheringForSort,
   isCloseUp,
+  handHoverCameraFocusEnabled,
   selectedCardOutlineColor,
   onHandAreaFocusChange,
   onHandCardClick,
@@ -86,15 +88,21 @@ export default function LocalHand({
   const cardMembershipKey = [...cards.map((card) => card.id)].sort().join('|')
   const hiddenCardMembershipKey = [...hiddenCardIds].sort().join('|')
   const isDraggingOverActiveHandArea = Boolean(draggingCardId) && isDraggingOverHandArea
-  const isHandPresentationActive = isHandAreaHovered || isDraggingOverActiveHandArea
+  const isHandPresentationActive =
+    handHoverCameraFocusEnabled && (isHandAreaHovered || isDraggingOverActiveHandArea)
 
   useEffect(() => {
     onHandCardHover(hoveredCardIndex === null ? [] : [hoveredCardIndex])
   }, [hoveredCardIndex, onHandCardHover])
 
   useEffect(() => {
+    if (!handHoverCameraFocusEnabled) {
+      onHandAreaFocusChange(false)
+      return
+    }
+
     onHandAreaFocusChange(isHandPresentationActive)
-  }, [isHandPresentationActive, onHandAreaFocusChange])
+  }, [handHoverCameraFocusEnabled, isHandPresentationActive, onHandAreaFocusChange])
 
   useLayoutEffect(() => {
     const nextCardIds = new Set(cardMembershipKey ? cardMembershipKey.split('|') : [])
@@ -432,7 +440,9 @@ export default function LocalHand({
         const isDragging = draggingCardId === card.id
         const isHidden = hiddenCardIds.has(card.id)
         const closeUpZOffset = isCloseUp ? LOCAL_HAND_CLOSEUP_Z_OFFSET : 0
-        const targetRotation: [number, number, number] = [isHandPresentationActive ? -0.42 : -1.08, 0, 0]
+        const targetRotation: [number, number, number] = handHoverCameraFocusEnabled
+          ? [isHandPresentationActive ? -0.42 : -1.08, 0, 0]
+          : [-Math.PI / 2, 0, 0]
         const isDraggingFlatOnTable = isDragging && !isDraggingOverHandArea
         const resolvedRotation: [number, number, number] = isDraggingFlatOnTable ? [-Math.PI / 2, 0, 0] : targetRotation
         const targetPosition: [number, number, number] = isGatheringForSort
@@ -472,7 +482,7 @@ export default function LocalHand({
                 scale={[interactionWidth, 1, 1]}
                 raycast={
                   passthroughInteractionForOwnJokerSwap &&
-                  (draggingCardId ? card.id !== draggingCardId : !selectedCardIds.has(card.id))
+                    (draggingCardId ? card.id !== draggingCardId : !selectedCardIds.has(card.id))
                     ? () => null
                     : undefined
                 }

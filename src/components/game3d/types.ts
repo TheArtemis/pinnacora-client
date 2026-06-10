@@ -16,6 +16,7 @@ export type GameTableSceneProps = {
   discardPileMeldTargetIds: Set<string>
   discardPileJokerTargetIds: Set<string>
   swappableMeldJokerIds: Set<string>
+  ownMeldAttachTargetIds: Set<string>
   tableHint: string
   handSortMode: HandSortMode
   handHoverCameraFocusEnabled: boolean
@@ -37,6 +38,8 @@ export type GameTableSceneProps = {
   onDiscardSelectedCard: () => void
   onMeldJokerClick: (meldId: string, jokerCardId: string) => void
   onMeldJokerDrop: (meldId: string, jokerCardId: string, replacementCardId: string) => void
+  onAttachToMeld: (meldId: string) => void
+  onAttachToMeldDrop: (meldId: string, cardId: string) => void
   onPutDownMeld: () => void
 }
 

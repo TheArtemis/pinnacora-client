@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
-import { canReplaceMeldJoker } from '../../game/melds'
+import { canAttachCardToOwnMeld, canReplaceMeldJoker } from '../../game/melds'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
 import DiscardPile from './DiscardPile'
@@ -19,10 +19,12 @@ export default function SceneContent(props: SceneContentProps) {
   const [draggedHandCardId, setDraggedHandCardId] = useState<string | null>(null)
   const isDiscardDropTargetHoveredRef = useRef(false)
   const meldJokerDropTargetRef = useRef<{ meldId: string; jokerCardId: string } | null>(null)
+  const meldAttachDropTargetRef = useRef<string | null>(null)
   const puttingDownCardIds = useMemo(
     () => new Set(props.puttingDownCards.map((card) => card.id)),
     [props.puttingDownCards],
   )
+  const viewerPlayerId = localPlayerId(props.state)
   const draggedSwappableMeldJokerIds = useMemo(() => {
     const draggedCard = props.hand.find((card) => card.id === draggedHandCardId)
 
@@ -43,7 +45,41 @@ export default function SceneContent(props: SceneContentProps) {
     return swappableJokerIds
   }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds])
 
-  const viewerPlayerId = localPlayerId(props.state)
+  const draggedOwnMeldAttachTargetIds = useMemo(() => {
+    const draggedCard = props.hand.find((card) => card.id === draggedHandCardId)
+
+    if (!props.canDiscard || !draggedCard || !viewerPlayerId) {
+      return new Set<string>()
+    }
+
+    return new Set(
+      props.state?.melds
+        .filter((meld) => canAttachCardToOwnMeld(meld, viewerPlayerId, draggedCard))
+        .map((meld) => meld.id) ?? [],
+    )
+  }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds, viewerPlayerId])
+
+  const ownMeldAttachTargetIdsOnTable = useMemo(() => {
+    if (!viewerPlayerId) {
+      return new Set<string>()
+    }
+
+    const ownAttachIds = new Set<string>()
+
+    for (const meldId of props.ownMeldAttachTargetIds) {
+      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+      if (meld?.playerId === viewerPlayerId) {
+        ownAttachIds.add(meldId)
+      }
+    }
+
+    for (const meldId of draggedOwnMeldAttachTargetIds) {
+      ownAttachIds.add(meldId)
+    }
+
+    return ownAttachIds
+  }, [draggedOwnMeldAttachTargetIds, props.ownMeldAttachTargetIds, props.state?.melds, viewerPlayerId])
   const ownSwappableMeldJokerIds = useMemo(() => {
     if (!viewerPlayerId) {
       return new Set<string>()
@@ -71,7 +107,8 @@ export default function SceneContent(props: SceneContentProps) {
 
     return ownJokerIds
   }, [draggedSwappableMeldJokerIds, props.state?.melds, props.swappableMeldJokerIds, viewerPlayerId])
-  const passthroughHandInteractionForOwnJokerSwap = ownSwappableMeldJokerIds.size > 0
+  const passthroughHandInteractionForOwnJokerSwap =
+    ownSwappableMeldJokerIds.size > 0 || ownMeldAttachTargetIdsOnTable.size > 0
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -91,6 +128,7 @@ export default function SceneContent(props: SceneContentProps) {
     if (!cardId) {
       isDiscardDropTargetHoveredRef.current = false
       meldJokerDropTargetRef.current = null
+      meldAttachDropTargetRef.current = null
     }
   }
 
@@ -101,20 +139,20 @@ export default function SceneContent(props: SceneContentProps) {
         meldJokerDropTargetRef.current.jokerCardId,
         cardId,
       )
+    } else if (meldAttachDropTargetRef.current && props.canDiscard) {
+      props.onAttachToMeldDrop(meldAttachDropTargetRef.current, cardId)
     } else if (isDiscardDropTargetHoveredRef.current && props.canDiscard) {
       props.onDiscardHandCard(cardId)
     }
 
     isDiscardDropTargetHoveredRef.current = false
     meldJokerDropTargetRef.current = null
+    meldAttachDropTargetRef.current = null
   }
 
   return (
     <>
-      <CameraRig
-        focusLocalHand={props.handHoverCameraFocusEnabled && props.isLocalHandFocused}
-        focusMiddleTable={props.isMiddleTableFocused}
-      />
+      <CameraRig focusLocalHand={props.isLocalHandFocused} focusMiddleTable={props.isMiddleTableFocused} />
       <color attach="background" args={['#eef2f4']} />
       <ambientLight intensity={0.72} />
       <directionalLight position={[1.8, 5.2, 4.4]} intensity={1.8} />
@@ -145,10 +183,16 @@ export default function SceneContent(props: SceneContentProps) {
           draggedSwappableMeldJokerIds={draggedSwappableMeldJokerIds}
           discardPileMeldTargetIds={props.discardPileMeldTargetIds}
           discardPileJokerTargetIds={props.discardPileJokerTargetIds}
+          ownMeldAttachTargetIds={props.ownMeldAttachTargetIds}
+          draggedOwnMeldAttachTargetIds={draggedOwnMeldAttachTargetIds}
           canSwapJoker={props.canDiscard}
           onMeldJokerClick={props.onMeldJokerClick}
           onMeldJokerDropTargetChange={(dropTarget) => {
             meldJokerDropTargetRef.current = dropTarget
+          }}
+          onAttachToMeldClick={props.onAttachToMeld}
+          onAttachToMeldDropTargetChange={(meldId) => {
+            meldAttachDropTargetRef.current = meldId
           }}
           onDiscardPileMeldTargetClick={props.onDiscardPileMeldTargetClick}
           onDiscardPileJokerTargetClick={props.onDiscardPileJokerTargetClick}
@@ -163,6 +207,7 @@ export default function SceneContent(props: SceneContentProps) {
         puttingDownCardIds={puttingDownCardIds}
         isGatheringForSort={props.isHandGatheringForSort}
         isCloseUp={props.isLocalHandFocused}
+        handHoverCameraFocusEnabled={props.handHoverCameraFocusEnabled}
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}

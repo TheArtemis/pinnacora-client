@@ -1,5 +1,5 @@
 import type { Card } from './cardTypes'
-import { canAddCardToMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
+import { canAddCardToMeld, canAttachCardToOwnMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
 import { calculateMeldPoints } from './scoring'
 import type { ServerGameState } from './serverTypes'
 
@@ -7,6 +7,7 @@ export type OptimisticGameAction =
   | { id: string; type: 'draw_card'; placeholderCard: Card }
   | { id: string; type: 'pick_up_discard_pile'; cardIndex: number; cardIds: string[]; pickupTarget?: DiscardPilePickupTarget }
   | { id: string; type: 'put_down_meld'; cardIds: string[] }
+  | { id: string; type: 'attach_to_meld'; meldId: string; cardId: string }
   | { id: string; type: 'swap_meld_joker'; meldId: string; jokerCardId: string; replacementCardId: string }
   | { id: string; type: 'discard_card'; cardId: string }
 
@@ -59,6 +60,15 @@ export function createPutDownMeldAction(cardIds: string[]): OptimisticGameAction
   }
 }
 
+export function createAttachToMeldAction(meldId: string, cardId: string): OptimisticGameAction {
+  return {
+    id: createClientActionId(),
+    type: 'attach_to_meld',
+    meldId,
+    cardId,
+  }
+}
+
 export function createSwapMeldJokerAction(
   meldId: string,
   jokerCardId: string,
@@ -103,6 +113,8 @@ export function projectOptimisticAction(state: ServerGameState, action: Optimist
       return projectPickUpDiscardPile(state, action.cardIndex, action.cardIds, action.pickupTarget)
     case 'put_down_meld':
       return projectPutDownMeld(state, action.cardIds)
+    case 'attach_to_meld':
+      return projectAttachToMeld(state, action.meldId, action.cardId)
     case 'swap_meld_joker':
       return projectSwapMeldJoker(state, action.meldId, action.jokerCardId, action.replacementCardId)
     case 'discard_card':
@@ -357,6 +369,52 @@ function projectPutDownMeld(state: ServerGameState, cardIds: string[]): ServerGa
       }
 
       const hand = player.hand.filter((card) => !uniqueCardIds.has(card.id))
+
+      return {
+        ...player,
+        hand,
+        handCount: hand.length,
+      }
+    }),
+  }, playerId)
+}
+
+function projectAttachToMeld(state: ServerGameState, meldId: string, cardId: string): ServerGameState | null {
+  if (!isCurrentPlayerPhase(state, 'discard')) {
+    return null
+  }
+
+  const playerId = state.youPlayerId
+  const currentPlayer = state.players.find((player) => player.id === state.youPlayerId)
+  const card = currentPlayer?.hand?.find((candidateCard) => candidateCard.id === cardId)
+  const meld = state.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+  if (!playerId || !card || !meld || !canAttachCardToOwnMeld(meld, playerId, card)) {
+    return null
+  }
+
+  const nextMeldCards = [...meld.cards, card]
+  const sortedMeldCards = sortMeldCards(nextMeldCards, meld.type)
+
+  return maybeFinishGame({
+    ...state,
+    melds: state.melds.map((candidateMeld) => {
+      if (candidateMeld.id !== meldId) {
+        return candidateMeld
+      }
+
+      return {
+        ...candidateMeld,
+        cards: sortedMeldCards,
+        points: calculateMeldPoints(sortedMeldCards, meld.type),
+      }
+    }),
+    players: state.players.map((player) => {
+      if (player.id !== state.youPlayerId || !player.hand) {
+        return player
+      }
+
+      const hand = player.hand.filter((candidateCard) => candidateCard.id !== cardId)
 
       return {
         ...player,

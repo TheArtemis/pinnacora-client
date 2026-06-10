@@ -32,9 +32,13 @@ type MeldCardsProps = {
   draggedSwappableMeldJokerIds: Set<string>
   discardPileMeldTargetIds: Set<string>
   discardPileJokerTargetIds: Set<string>
+  ownMeldAttachTargetIds: Set<string>
+  draggedOwnMeldAttachTargetIds: Set<string>
   canSwapJoker: boolean
   onMeldJokerClick: (meldId: string, jokerCardId: string) => void
   onMeldJokerDropTargetChange: (dropTarget: { meldId: string; jokerCardId: string } | null) => void
+  onAttachToMeldClick: (meldId: string) => void
+  onAttachToMeldDropTargetChange: (meldId: string | null) => void
   onDiscardPileMeldTargetClick: (meldId: string) => void
   onDiscardPileJokerTargetClick: (meldId: string, jokerCardId: string) => void
 }
@@ -63,9 +67,13 @@ export default function MeldCards({
   draggedSwappableMeldJokerIds,
   discardPileMeldTargetIds,
   discardPileJokerTargetIds,
+  ownMeldAttachTargetIds,
+  draggedOwnMeldAttachTargetIds,
   canSwapJoker,
   onMeldJokerClick,
   onMeldJokerDropTargetChange,
+  onAttachToMeldClick,
+  onAttachToMeldDropTargetChange,
   onDiscardPileMeldTargetClick,
   onDiscardPileJokerTargetClick,
 }: MeldCardsProps) {
@@ -181,11 +189,28 @@ export default function MeldCards({
               const isDraggedSwappableJoker = draggedSwappableMeldJokerIds.has(swappableMeldJokerId)
               const isDiscardPileMeldTarget = discardPileMeldTargetIds.has(meld.id)
               const isDiscardPileJokerTarget = discardPileJokerTargetIds.has(swappableMeldJokerId)
+              const isOwnMeldAttachTarget = isLocalMeld && ownMeldAttachTargetIds.has(meld.id)
+              const isDraggedOwnMeldAttachTarget = isLocalMeld && draggedOwnMeldAttachTargetIds.has(meld.id)
               const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
-              const isOwnJokerSwapTarget =
+              const isOwnMeldInteractionTarget =
                 isLocalMeld &&
-                (isSwappableJoker || isDraggedSwappableJoker || isDiscardPileJokerTarget)
-              const jokerSwapZLift = isOwnJokerSwapTarget ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
+                (isSwappableJoker ||
+                  isDraggedSwappableJoker ||
+                  isDiscardPileJokerTarget ||
+                  isOwnMeldAttachTarget ||
+                  isDraggedOwnMeldAttachTarget ||
+                  isDiscardPileMeldTarget)
+              const jokerSwapZLift = isOwnMeldInteractionTarget ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
+              const isHighlightedTarget =
+                isSwappableJoker ||
+                isDraggedSwappableJoker ||
+                isDiscardPileMeldTarget ||
+                isDiscardPileJokerTarget ||
+                isOwnMeldAttachTarget ||
+                isDraggedOwnMeldAttachTarget
+              const hasAttachInteraction = isOwnMeldAttachTarget || isDraggedOwnMeldAttachTarget
+              const hasPointerInteraction =
+                isClickableJoker || isDraggedSwappableJoker || hasAttachInteraction
 
               return (
                 <CardMesh
@@ -199,15 +224,18 @@ export default function MeldCards({
                   rotation={[-Math.PI / 2, 0, 0]}
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
                   scale={isComplete ? COMPLETED_MELD_SCALE : 1}
-                  renderOrder={isOwnJokerSwapTarget ? 120 + visibleCardIndex : 0}
-                  layerOnTop={isOwnJokerSwapTarget}
-                  selected={isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
-                  hovered={isHoveredJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
-                  outlineColor={
-                    isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget
-                      ? '#15803d'
-                      : undefined
+                  renderOrder={isOwnMeldInteractionTarget ? 120 + visibleCardIndex : 0}
+                  layerOnTop={isOwnMeldInteractionTarget}
+                  selected={isHighlightedTarget}
+                  hovered={
+                    isHoveredJoker ||
+                    isDraggedSwappableJoker ||
+                    isDiscardPileMeldTarget ||
+                    isDiscardPileJokerTarget ||
+                    isOwnMeldAttachTarget ||
+                    isDraggedOwnMeldAttachTarget
                   }
+                  outlineColor={isHighlightedTarget ? '#15803d' : undefined}
                   fidgetTrigger={fidgetTriggers.get(meldCardId) ?? 0}
                   fidgetFallDelay={visibleMeldCardIds.indexOf(meldCardId) * 0.045}
                   fidgetSideDirection={isLocalMeld ? -1 : 1}
@@ -217,24 +245,34 @@ export default function MeldCards({
                       onDiscardPileJokerTargetClick(meld.id, card.id)
                     } else if (isDiscardPileMeldTarget) {
                       onDiscardPileMeldTargetClick(meld.id)
+                    } else if (isClickableJoker && isSwappableJoker) {
+                      onMeldJokerClick(meld.id, card.id)
+                    } else if (isOwnMeldAttachTarget) {
+                      onAttachToMeldClick(meld.id)
                     } else if (isClickableJoker) {
                       onMeldJokerClick(meld.id, card.id)
                     }
                   }}
-                  onPointerOver={isClickableJoker || isDraggedSwappableJoker ? () => {
+                  onPointerOver={hasPointerInteraction ? () => {
                     if (isClickableJoker) {
                       setHoveredMeldJokerId(swappableMeldJokerId)
                     }
                     if (isDraggedSwappableJoker) {
                       onMeldJokerDropTargetChange({ meldId: meld.id, jokerCardId: card.id })
                     }
+                    if (isDraggedOwnMeldAttachTarget) {
+                      onAttachToMeldDropTargetChange(meld.id)
+                    }
                   } : undefined}
-                  onPointerOut={isClickableJoker || isDraggedSwappableJoker ? () => {
+                  onPointerOut={hasPointerInteraction ? () => {
                     if (isClickableJoker) {
                       setHoveredMeldJokerId(null)
                     }
                     if (isDraggedSwappableJoker) {
                       onMeldJokerDropTargetChange(null)
+                    }
+                    if (isDraggedOwnMeldAttachTarget) {
+                      onAttachToMeldDropTargetChange(null)
                     }
                   } : undefined}
                 />

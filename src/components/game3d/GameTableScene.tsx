@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { localPlayerId } from './layout'
 import SceneContent from './SceneContent'
 import type { GameTableSceneProps } from './types'
@@ -14,9 +14,21 @@ export default function GameTableScene(props: GameTableSceneProps) {
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
   const isLowerCanvasFocusedRef = useRef(false)
   const isHandAreaFocusedRef = useRef(false)
-  const isLocalHandFocused = isLowerCanvasFocused || isHandAreaFocused
+  const isLocalHandFocused =
+    props.handHoverCameraFocusEnabled && (isLowerCanvasFocused || isHandAreaFocused)
   const isMiddleTableFocused = false
   const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
+
+  useEffect(() => {
+    if (props.handHoverCameraFocusEnabled) {
+      return
+    }
+
+    isLowerCanvasFocusedRef.current = false
+    isHandAreaFocusedRef.current = false
+    setIsLowerCanvasFocused(false)
+    setIsHandAreaFocused(false)
+  }, [props.handHoverCameraFocusEnabled])
 
   const updateLowerCanvasFocus = useCallback((isFocused: boolean) => {
     if (isLowerCanvasFocusedRef.current === isFocused) {
@@ -37,12 +49,16 @@ export default function GameTableScene(props: GameTableSceneProps) {
   }, [])
 
   const handleScenePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!props.handHoverCameraFocusEnabled) {
+      return
+    }
+
     const bounds = event.currentTarget.getBoundingClientRect()
     const pointerY = event.clientY - bounds.top
     const isInLowerCanvas = pointerY > bounds.height * 0.62
 
     updateLowerCanvasFocus(isInLowerCanvas)
-  }, [updateLowerCanvasFocus])
+  }, [props.handHoverCameraFocusEnabled, updateLowerCanvasFocus])
 
   const handleScenePointerLeave = useCallback(() => {
     updateLowerCanvasFocus(false)

@@ -259,6 +259,10 @@ export function canReplaceMeldJoker(
   return replacementMeldType === meld.type && isMeldInCardOrder(replacementMeldCards, replacementMeldType)
 }
 
+export function canAttachCardToOwnMeld(meld: ServerGameMeld, playerId: string, card: Card) {
+  return meld.playerId === playerId && canAddCardToMeld(meld, card)
+}
+
 export function canAddCardToMeld(meld: ServerGameMeld, card: Card) {
   const nextMeldCards = [...meld.cards, card]
   const nextMeldType = getMeldType(nextMeldCards)
