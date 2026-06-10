@@ -187,13 +187,10 @@ export function resolveDiscardPilePickupStartIndex(
   return null
 }
 
-export function buildDiscardPilePickupMeld(
-  discardPile: Card[],
-  cardIndex: number,
+function resolveDiscardPickupMeldPartition(
+  pickedUpCards: Card[],
   handCards: Card[],
 ): DiscardPilePickupMeldPlan | null {
-  const pickedUpCards = discardPile.slice(cardIndex)
-
   if (pickedUpCards.length === 0) {
     return null
   }
@@ -207,17 +204,52 @@ export function buildDiscardPilePickupMeld(
     }
   }
 
-  const [requiredDiscardCard] = pickedUpCards
-  const meldWithRequiredDiscardCard = [requiredDiscardCard, ...handCards]
+  const pickedUpCount = pickedUpCards.length
+  let bestPlan: DiscardPilePickupMeldPlan | null = null
+  let bestDiscardCardsInMeld = -1
+  let bestMeldSize = -1
 
-  if (!getMeldType(meldWithRequiredDiscardCard)) {
-    return null
+  for (let mask = 1; mask < 1 << pickedUpCount; mask += 1) {
+    if ((mask & 1) === 0) {
+      continue
+    }
+
+    const discardSubset: Card[] = []
+    const cardsAddedToHand: Card[] = []
+
+    for (let index = 0; index < pickedUpCount; index += 1) {
+      if (mask & (1 << index)) {
+        discardSubset.push(pickedUpCards[index])
+      } else {
+        cardsAddedToHand.push(pickedUpCards[index])
+      }
+    }
+
+    const meldCards = [...discardSubset, ...handCards]
+
+    if (!getMeldType(meldCards)) {
+      continue
+    }
+
+    if (
+      discardSubset.length > bestDiscardCardsInMeld ||
+      (discardSubset.length === bestDiscardCardsInMeld && meldCards.length > bestMeldSize)
+    ) {
+      bestPlan = { meldCards, cardsAddedToHand }
+      bestDiscardCardsInMeld = discardSubset.length
+      bestMeldSize = meldCards.length
+    }
   }
 
-  return {
-    meldCards: meldWithRequiredDiscardCard,
-    cardsAddedToHand: pickedUpCards.slice(1),
-  }
+  return bestPlan
+}
+
+export function buildDiscardPilePickupMeld(
+  discardPile: Card[],
+  cardIndex: number,
+  handCards: Card[],
+): DiscardPilePickupMeldPlan | null {
+  return resolveDiscardPickupMeldPartition(discardPile.slice(cardIndex), handCards)
 }
 
 export function validateDiscardPilePickupMeld(
