@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import GameTableScene from '../components/game3d'
 import type { Card as CardType } from '../game/cardTypes'
-import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
+import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
 import {
   createAttachToMeldAction,
   createDiscardCardAction,
@@ -230,10 +230,37 @@ export default function Game() {
 
     return new Set(opponentHandHover.cardIndexes)
   }, [opponentHandHover, serverState])
+  const discardPilePickupHandCards = useMemo(
+    () => handCardsForDiscardPickup(hand, selectedMeldCards),
+    [hand, selectedMeldCards],
+  )
+  const discardPilePickupResolvedStartIndex = useMemo(() => {
+    if (!canPickUpDiscardPile || discardPileHighlightStartIndex === null) {
+      return null
+    }
+
+    return resolveDiscardPilePickupStartIndex(
+      discardPile,
+      discardPileHighlightStartIndex,
+      discardPilePickupHandCards,
+    )
+  }, [canPickUpDiscardPile, discardPile, discardPileHighlightStartIndex, discardPilePickupHandCards])
   const discardPileCombinationCard =
-    discardPileHighlightStartIndex === null ? undefined : discardPile[discardPileHighlightStartIndex]
-  const discardPileCardsAddedToHand =
-    discardPileHighlightStartIndex === null ? [] : discardPile.slice(discardPileHighlightStartIndex + 1)
+    discardPilePickupResolvedStartIndex === null
+      ? undefined
+      : discardPile[discardPilePickupResolvedStartIndex]
+  const discardPilePickupPlan = useMemo(() => {
+    if (discardPilePickupResolvedStartIndex === null) {
+      return null
+    }
+
+    return buildDiscardPilePickupMeld(
+      discardPile,
+      discardPilePickupResolvedStartIndex,
+      discardPilePickupHandCards,
+    )
+  }, [discardPile, discardPilePickupHandCards, discardPilePickupResolvedStartIndex])
+  const discardPileCardsAddedToHand = discardPilePickupPlan?.cardsAddedToHand ?? []
   const discardPileMeldTargetIds = useMemo(() => {
     if (!canPickUpDiscardPile || !discardPileCombinationCard || !serverState?.youPlayerId) {
       return new Set<string>()
@@ -262,17 +289,10 @@ export default function Game() {
 
     return jokerIds
   }, [canPickUpDiscardPile, discardPileCombinationCard, serverState?.melds])
-  const discardPilePickupPlan = useMemo(() => {
-    if (!canPickUpDiscardPile || discardPileHighlightStartIndex === null) {
-      return null
-    }
-
-    return buildDiscardPilePickupMeld(discardPile, discardPileHighlightStartIndex, selectedMeldCards)
-  }, [canPickUpDiscardPile, discardPile, discardPileHighlightStartIndex, selectedMeldCards])
   const hasDiscardPileTablePickupTarget = discardPileMeldTargetIds.size > 0 || discardPileJokerTargetIds.size > 0
   const discardPilePickupError =
     canPickUpDiscardPile && discardPileHighlightStartIndex !== null
-      ? validateDiscardPilePickupMeld(discardPile, discardPileHighlightStartIndex, selectedMeldCards)
+      ? validateDiscardPilePickupMeld(discardPile, discardPileHighlightStartIndex, discardPilePickupHandCards)
       : ''
   const selectedMeldType = selectedMeldError ? undefined : getMeldType(selectedMeldCards)
   const selectedMeldPoints = selectedMeldType ? calculateMeldPoints(selectedMeldCards, selectedMeldType) : 0
@@ -289,7 +309,7 @@ export default function Game() {
         : undefined
   const discardPilePickupCombination = discardPilePickupPlan?.meldCards ?? (
     discardPileCombinationCard
-      ? [discardPileCombinationCard, ...selectedMeldCards]
+      ? [discardPileCombinationCard, ...discardPilePickupHandCards]
       : selectedMeldCards
   )
   const discardPilePickupType = discardPilePickupError ? undefined : getMeldType(discardPilePickupCombination)
@@ -553,16 +573,27 @@ export default function Game() {
 
     setSelectedDiscardPileStartIndex(cardIndex)
 
-    const meldError = validateDiscardPilePickupMeld(discardPile, cardIndex, selectedMeldCards)
+    const pickupHandCards = handCardsForDiscardPickup(hand, selectedMeldCards)
+    const pickupHandCardIds = pickupHandCards.map((card) => card.id)
+    const resolvedIndex = resolveDiscardPilePickupStartIndex(discardPile, cardIndex, pickupHandCards)
+    const combinationCard = resolvedIndex !== null ? discardPile[resolvedIndex] : discardPile[cardIndex]
+    const meldError =
+      resolvedIndex === null
+        ? validateDiscardPilePickupMeld(discardPile, cardIndex, pickupHandCards)
+        : ''
     const tablePickupTargets = serverState?.melds.flatMap((meld): DiscardPilePickupTarget[] => {
       const targets: DiscardPilePickupTarget[] = []
 
-      if (meld.playerId === serverState.youPlayerId && canAddCardToMeld(meld, discardPile[cardIndex])) {
+      if (!combinationCard) {
+        return targets
+      }
+
+      if (meld.playerId === serverState.youPlayerId && canAddCardToMeld(meld, combinationCard)) {
         targets.push({ type: 'extend_meld', meldId: meld.id })
       }
 
       for (const card of meld.cards) {
-        if (canReplaceMeldJoker(meld, card.id, discardPile[cardIndex])) {
+        if (canReplaceMeldJoker(meld, card.id, combinationCard)) {
           targets.push({ type: 'swap_joker', meldId: meld.id, jokerCardId: card.id })
         }
       }
@@ -570,7 +601,7 @@ export default function Game() {
       return targets
     }) ?? []
 
-    if (meldError) {
+    if (meldError || resolvedIndex === null) {
       if (tablePickupTargets.length === 1) {
         pickUpDiscardPileWithTarget(cardIndex, [], tablePickupTargets[0])
         return
@@ -585,7 +616,7 @@ export default function Game() {
       return
     }
 
-    pickUpDiscardPileWithTarget(cardIndex, selectedMeldCardIds)
+    pickUpDiscardPileWithTarget(resolvedIndex, pickupHandCardIds)
   }
 
   function pickUpDiscardPileWithTarget(
@@ -933,7 +964,7 @@ export default function Game() {
           selectedCardIds={sceneSelectedCardIds}
           selectedCardOutlineColor={selectedCardOutlineColor}
           opponentHoveredHandIndexes={opponentHoveredHandIndexes}
-          discardPileHighlightStartIndex={discardPileHighlightStartIndex}
+          discardPileHighlightStartIndex={discardPilePickupResolvedStartIndex ?? discardPileHighlightStartIndex}
           discardPileMeldTargetIds={discardPileMeldTargetIds}
           discardPileJokerTargetIds={discardPileJokerTargetIds}
           swappableMeldJokerIds={swappableMeldJokerIds}

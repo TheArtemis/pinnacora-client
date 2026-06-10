@@ -161,6 +161,32 @@ export type DiscardPilePickupMeldPlan = {
   cardsAddedToHand: Card[]
 }
 
+export function handCardsForDiscardPickup(hand: Card[], selectedHandCards: Card[]) {
+  if (selectedHandCards.length > 0) {
+    return selectedHandCards
+  }
+
+  if (hand.length === 1) {
+    return hand
+  }
+
+  return selectedHandCards
+}
+
+export function resolveDiscardPilePickupStartIndex(
+  discardPile: Card[],
+  clickedIndex: number,
+  handCards: Card[],
+) {
+  for (let cardIndex = clickedIndex; cardIndex >= 0; cardIndex -= 1) {
+    if (buildDiscardPilePickupMeld(discardPile, cardIndex, handCards)) {
+      return cardIndex
+    }
+  }
+
+  return null
+}
+
 export function buildDiscardPilePickupMeld(
   discardPile: Card[],
   cardIndex: number,
@@ -196,14 +222,14 @@ export function buildDiscardPilePickupMeld(
 
 export function validateDiscardPilePickupMeld(
   discardPile: Card[],
-  cardIndex: number,
+  clickedIndex: number,
   handCards: Card[],
 ) {
-  if (buildDiscardPilePickupMeld(discardPile, cardIndex, handCards)) {
+  if (resolveDiscardPilePickupStartIndex(discardPile, clickedIndex, handCards) !== null) {
     return ''
   }
 
-  const pickedUpCards = discardPile.slice(cardIndex)
+  const pickedUpCards = discardPile.slice(clickedIndex)
   const meldError = validateMeld([...pickedUpCards, ...handCards])
 
   if (meldError && pickedUpCards[0]) {
