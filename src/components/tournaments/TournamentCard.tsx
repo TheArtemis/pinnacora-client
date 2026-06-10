@@ -73,12 +73,12 @@ export default function TournamentCard({ tournament }: { tournament: Tournament 
             </Link>
             <button
               type="button"
-              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[var(--secondary-border)] bg-[var(--panel)] text-[var(--secondary)] transition hover:border-[var(--secondary-strong)] hover:bg-[var(--secondary-hover-bg)] hover:text-[var(--secondary-strong)]"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[var(--secondary-border)] bg-[var(--panel)] text-[var(--secondary)] transition hover:border-[var(--secondary-strong)] hover:bg-[var(--secondary-hover-bg)] hover:text-[var(--secondary-strong)]"
               aria-label={copied ? 'Invite link copied' : 'Copy invite link'}
               onClick={handleCopyTournamentLink}
               title={copied ? 'Copied' : 'Copy invite'}
             >
-              {copied ? <Check aria-hidden="true" size={24} strokeWidth={2.5} /> : <Copy aria-hidden="true" size={24} strokeWidth={2.5} />}
+              {copied ? <Check aria-hidden="true" size={30} strokeWidth={2.5} /> : <Copy aria-hidden="true" size={30} strokeWidth={2.5} />}
             </button>
           </div>
         </>
