@@ -134,6 +134,7 @@ export default function Game() {
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
   const [opponentHandHover, setOpponentHandHover] = useState<{ playerId: string; cardIndexes: number[] } | null>(null)
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('suit')
+  const [handHoverCameraFocusEnabled, setHandHoverCameraFocusEnabled] = useState(false)
   const [handOrderIds, setHandOrderIds] = useState<string[]>([])
   const [isHandGatheringForSort, setIsHandGatheringForSort] = useState(false)
   const puttingDownAnimationTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
@@ -785,6 +786,16 @@ export default function Game() {
           </p>
         </div>
         <div className="header-actions">
+          <label className="game-header-toggle">
+            <span>Hand zoom</span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={handHoverCameraFocusEnabled}
+              onChange={(event) => setHandHoverCameraFocusEnabled(event.target.checked)}
+              aria-label="Zoom camera when hovering hand cards"
+            />
+          </label>
           <button type="button" className="secondary-button" onClick={handleCopyGameLink}>
             {copiedGameLink ? 'Copied!' : 'Copy game link'}
           </button>
@@ -832,6 +843,7 @@ export default function Game() {
           swappableMeldJokerIds={swappableMeldJokerIds}
           tableHint={tableHint}
           handSortMode={handSortMode}
+          handHoverCameraFocusEnabled={handHoverCameraFocusEnabled}
           canDraw={canDraw}
           canDiscard={canDiscard}
           canPickUpDiscardPile={canPickUpDiscardPile}

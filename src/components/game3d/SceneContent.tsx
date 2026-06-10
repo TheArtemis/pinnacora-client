@@ -80,7 +80,10 @@ export default function SceneContent(props: SceneContentProps) {
 
   return (
     <>
-      <CameraRig focusLocalHand={props.isLocalHandFocused} focusMiddleTable={props.isMiddleTableFocused} />
+      <CameraRig
+        focusLocalHand={props.handHoverCameraFocusEnabled && props.isLocalHandFocused}
+        focusMiddleTable={props.isMiddleTableFocused}
+      />
       <color attach="background" args={['#eef2f4']} />
       <ambientLight intensity={0.72} />
       <directionalLight position={[1.8, 5.2, 4.4]} intensity={1.8} />

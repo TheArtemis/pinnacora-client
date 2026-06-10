@@ -18,6 +18,7 @@ export type GameTableSceneProps = {
   swappableMeldJokerIds: Set<string>
   tableHint: string
   handSortMode: HandSortMode
+  handHoverCameraFocusEnabled: boolean
   canDraw: boolean
   canDiscard: boolean
   canPickUpDiscardPile: boolean
