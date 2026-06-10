@@ -43,6 +43,7 @@ type LocalHandProps = Pick<
   onHandAreaFocusChange: (isFocused: boolean) => void
   onHandCardDragChange: (cardId: string | null) => void
   onHandCardDragEnd: (cardId: string) => void
+  passthroughInteractionForOwnJokerSwap?: boolean
 }
 
 export default function LocalHand({
@@ -59,6 +60,7 @@ export default function LocalHand({
   onHandCardDragChange,
   onHandCardDragEnd,
   onHandCardHover,
+  passthroughInteractionForOwnJokerSwap = false,
 }: LocalHandProps) {
   const { camera, gl } = useThree()
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
@@ -468,6 +470,12 @@ export default function LocalHand({
                 position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
                 rotation={targetRotation}
                 scale={[interactionWidth, 1, 1]}
+                raycast={
+                  passthroughInteractionForOwnJokerSwap &&
+                  (draggingCardId ? card.id !== draggingCardId : !selectedCardIds.has(card.id))
+                    ? () => null
+                    : undefined
+                }
                 onClick={(event) => handleCardClick(event, card)}
                 onPointerDown={(event) => handleCardPointerDown(event, card, targetPosition)}
                 onPointerMove={handleCardPointerMove}

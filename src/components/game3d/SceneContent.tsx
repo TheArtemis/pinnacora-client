@@ -10,6 +10,7 @@ import MeldCards from './MeldCards'
 import OpponentHand from './OpponentHand'
 import PuttingDownCards from './PuttingDownCards'
 import TableTop from './TableTop'
+import { localPlayerId } from './layout'
 import type { SceneContentProps } from './types'
 
 export default function SceneContent(props: SceneContentProps) {
@@ -41,6 +42,36 @@ export default function SceneContent(props: SceneContentProps) {
 
     return swappableJokerIds
   }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds])
+
+  const viewerPlayerId = localPlayerId(props.state)
+  const ownSwappableMeldJokerIds = useMemo(() => {
+    if (!viewerPlayerId) {
+      return new Set<string>()
+    }
+
+    const ownJokerIds = new Set<string>()
+
+    for (const jokerId of props.swappableMeldJokerIds) {
+      const meldId = jokerId.split(':')[0]
+      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+      if (meld?.playerId === viewerPlayerId) {
+        ownJokerIds.add(jokerId)
+      }
+    }
+
+    for (const jokerId of draggedSwappableMeldJokerIds) {
+      const meldId = jokerId.split(':')[0]
+      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+
+      if (meld?.playerId === viewerPlayerId) {
+        ownJokerIds.add(jokerId)
+      }
+    }
+
+    return ownJokerIds
+  }, [draggedSwappableMeldJokerIds, props.state?.melds, props.swappableMeldJokerIds, viewerPlayerId])
+  const passthroughHandInteractionForOwnJokerSwap = ownSwappableMeldJokerIds.size > 0
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -138,6 +169,7 @@ export default function SceneContent(props: SceneContentProps) {
         onHandCardDragChange={handleHandCardDragChange}
         onHandCardDragEnd={handleHandCardDragEnd}
         onHandCardHover={props.onHandCardHover}
+        passthroughInteractionForOwnJokerSwap={passthroughHandInteractionForOwnJokerSwap}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
     </>

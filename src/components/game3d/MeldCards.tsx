@@ -24,6 +24,7 @@ const rankOrder: Record<ServerGameState['melds'][number]['cards'][number]['rank'
 }
 const COMPLETED_MELD_X = 8.85
 const COMPLETED_MELD_SCALE = 0.72
+const LOCAL_MELD_JOKER_SWAP_Z_LIFT = 2.85
 
 type MeldCardsProps = {
   state: ServerGameState | null
@@ -181,6 +182,10 @@ export default function MeldCards({
               const isDiscardPileMeldTarget = discardPileMeldTargetIds.has(meld.id)
               const isDiscardPileJokerTarget = discardPileJokerTargetIds.has(swappableMeldJokerId)
               const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
+              const isOwnJokerSwapTarget =
+                isLocalMeld &&
+                (isSwappableJoker || isDraggedSwappableJoker || isDiscardPileJokerTarget)
+              const jokerSwapZLift = isOwnJokerSwapTarget ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
 
               return (
                 <CardMesh
@@ -189,11 +194,13 @@ export default function MeldCards({
                   position={[
                     startX,
                     tableCardBaseY + originalIndex * 0.006,
-                    startZ + visibleCardIndex * cardSpacing * zDirection,
+                    startZ + visibleCardIndex * cardSpacing * zDirection + jokerSwapZLift,
                   ]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   animateFrom={shouldMaterialize ? animateFrom : undefined}
                   scale={isComplete ? COMPLETED_MELD_SCALE : 1}
+                  renderOrder={isOwnJokerSwapTarget ? 120 + visibleCardIndex : 0}
+                  layerOnTop={isOwnJokerSwapTarget}
                   selected={isSwappableJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
                   hovered={isHoveredJoker || isDraggedSwappableJoker || isDiscardPileMeldTarget || isDiscardPileJokerTarget}
                   outlineColor={

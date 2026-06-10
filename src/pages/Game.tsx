@@ -316,7 +316,7 @@ export default function Game() {
         }
 
         if (swappableMeldJokerIds.size > 0) {
-          return 'Click a highlighted table joker to swap it, click the discard pile to discard, or select more cards for a combination.'
+          return 'Click a highlighted joker on the table (yours or your opponent\'s) to swap it, click the discard pile to discard, or select more cards for a combination.'
         }
 
         return 'Selected card can be discarded. It cannot replace any table joker right now.'
