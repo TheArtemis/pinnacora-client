@@ -11,7 +11,7 @@ import OpponentHand from './OpponentHand'
 import PuttingDownCards from './PuttingDownCards'
 import TableTop from './TableTop'
 import DevOutline from './DevOutline'
-import { TABLE, tableCardBaseY } from './constants'
+import { TABLE, TABLE_CAMERA_FOCUS, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
 import type { SceneContentProps } from './types'
 
@@ -111,8 +111,8 @@ export default function SceneContent(props: SceneContentProps) {
       return
     }
 
-    const targetY = props.isMiddleTableFocused ? 1.08 : 0
-    const targetZ = props.isMiddleTableFocused ? 1.18 : 0
+    const targetY = props.isMiddleTableFocused ? TABLE_CAMERA_FOCUS.tableLift.y : 0
+    const targetZ = props.isMiddleTableFocused ? TABLE_CAMERA_FOCUS.tableLift.z : 0
 
     tableCardsRef.current.position.y = MathUtils.damp(tableCardsRef.current.position.y, targetY, 7.2, delta)
     tableCardsRef.current.position.z = MathUtils.damp(tableCardsRef.current.position.z, targetZ, 7.2, delta)

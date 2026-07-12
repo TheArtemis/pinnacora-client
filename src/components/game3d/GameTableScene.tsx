@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { ZoomIn, ZoomOut } from 'lucide-react'
 import { localPlayerId } from './layout'
 import SceneContent from './SceneContent'
 import type { GameTableSceneProps } from './types'
@@ -12,11 +13,12 @@ export default function GameTableScene(props: GameTableSceneProps) {
   const opponent = props.state?.players.find((player) => player.id !== viewerPlayerId)
   const [isLowerCanvasFocused, setIsLowerCanvasFocused] = useState(false)
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
+  const [isTableZoomEnabled, setIsTableZoomEnabled] = useState(false)
   const isLowerCanvasFocusedRef = useRef(false)
   const isHandAreaFocusedRef = useRef(false)
   const isLocalHandFocused =
     props.handHoverCameraFocusEnabled && (isLowerCanvasFocused || isHandAreaFocused)
-  const isMiddleTableFocused = false
+  const isMiddleTableFocused = isTableZoomEnabled && !isLocalHandFocused
   const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
 
   useEffect(() => {
@@ -65,6 +67,10 @@ export default function GameTableScene(props: GameTableSceneProps) {
     handleLocalHandFocusChange(false)
   }, [handleLocalHandFocusChange, updateLowerCanvasFocus])
 
+  const handleToggleTableZoom = useCallback(() => {
+    setIsTableZoomEnabled((isEnabled) => !isEnabled)
+  }, [])
+
   const showSortActions = !props.handHoverCameraFocusEnabled || isSceneCloseUp
   const sortActionsClassName = props.handHoverCameraFocusEnabled
     ? 'game-scene__sort-actions'
@@ -92,6 +98,16 @@ export default function GameTableScene(props: GameTableSceneProps) {
           </button>
         ) : null}
       </div>
+      <button
+        type="button"
+        className={isTableZoomEnabled ? 'game-scene__table-zoom secondary-button secondary-button--active' : 'game-scene__table-zoom secondary-button'}
+        onClick={handleToggleTableZoom}
+        aria-pressed={isTableZoomEnabled}
+        aria-label={isTableZoomEnabled ? 'Return to full table view' : 'Zoom in on discard pile and table'}
+      >
+        {isTableZoomEnabled ? <ZoomOut size={16} aria-hidden="true" /> : <ZoomIn size={16} aria-hidden="true" />}
+        <span>{isTableZoomEnabled ? 'Full view' : 'Zoom table'}</span>
+      </button>
       <div className="game-scene__hud" aria-live="polite">
         <div>
           <span>Deck</span>

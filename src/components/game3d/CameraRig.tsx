@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { MathUtils, Vector3 } from 'three'
-import { localHandBaseZ } from './constants'
+import { localHandBaseZ, TABLE_CAMERA_FOCUS } from './constants'
 
 type CameraRigProps = {
   focusLocalHand: boolean
@@ -26,11 +26,27 @@ export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRi
     const aspectRatio = size.width / Math.max(size.height, 1)
     const isTallView = aspectRatio < 0.9
     const targetCameraX = 0
-    const targetCameraY = focusLocalHand ? 7.4 : focusMiddleTable ? (isTallView ? 18 : 15.5) : isTallView ? 24 : 21.5
-    const targetCameraZ = focusLocalHand ? 14.2 : focusMiddleTable ? -0.45 : isTallView ? 11 : 10
-    const targetLookX = 0
-    const targetLookY = focusLocalHand ? 1.35 : 0
-    const targetLookZ = focusLocalHand ? localHandBaseZ - 0.5 : focusMiddleTable ? -0.45 : 0
+    const targetCameraY = focusLocalHand
+      ? 7.4
+      : focusMiddleTable
+        ? (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.y : TABLE_CAMERA_FOCUS.camera.wide.y)
+        : isTallView
+          ? 24
+          : 21.5
+    const targetCameraZ = focusLocalHand
+      ? 14.2
+      : focusMiddleTable
+        ? (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.z : TABLE_CAMERA_FOCUS.camera.wide.z)
+        : isTallView
+          ? 11
+          : 10
+    const targetLookX = focusLocalHand ? 0 : focusMiddleTable ? TABLE_CAMERA_FOCUS.lookAt.x : 0
+    const targetLookY = focusLocalHand ? 1.35 : focusMiddleTable ? TABLE_CAMERA_FOCUS.lookAt.y : 0
+    const targetLookZ = focusLocalHand
+      ? localHandBaseZ - 0.5
+      : focusMiddleTable
+        ? TABLE_CAMERA_FOCUS.lookAt.z
+        : 0
     const activeCamera = cameraRef.current
 
     activeCamera.position.x = MathUtils.damp(activeCamera.position.x, targetCameraX, 5.8, delta)

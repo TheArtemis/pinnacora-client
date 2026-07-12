@@ -27,6 +27,27 @@ export const deckPosition = {
   z: -0.4,
 }
 
+export const discardAreaPosition = {
+  x: 0,
+  z: -0.62,
+} as const
+
+export const TABLE_CAMERA_FOCUS = {
+  lookAt: {
+    x: discardAreaPosition.x,
+    y: 0.38,
+    z: 0.15,
+  },
+  camera: {
+    wide: { y: 10.6, z: 6.2 },
+    tall: { y: 12.2, z: 7.1 },
+  },
+  tableLift: {
+    y: 1.08,
+    z: 1.18,
+  },
+} as const
+
 export const localHandBaseZ = 9.75
 export const tableCardBaseY = 0.14
 /** Lift own meld cards to hand height so clicks reach them without disabling hand selection. */

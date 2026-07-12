@@ -323,6 +323,19 @@
   transform: none;
 }
 
+.game-scene__table-zoom {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  box-shadow: var(--shadow);
+}
+
 .players {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
