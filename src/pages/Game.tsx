@@ -6,8 +6,8 @@ import GameTableScene from '../components/game3d'
 import MeldOrderPicker from '../components/MeldOrderPicker'
 import { devMode } from '../config/dev'
 import type { Card as CardType } from '../game/cardTypes'
-import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, hasAmbiguousMeldOrder, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
-import { getHandCardTableTargets } from '../game/tableTargets'
+import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardsToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, hasAmbiguousMeldOrder, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
+import { getHandCardsTableTargets } from '../game/tableTargets'
 import {
   createAttachToMeldAction,
   createDiscardCardAction,
@@ -191,13 +191,13 @@ export default function Game() {
   }, [hand, selectedMeldCardIds])
   const selectedJokerSwapReplacementCard = selectedMeldCards.length === 1 ? selectedMeldCards[0] : undefined
   const selectedCardTableTargets = useMemo(
-    () => getHandCardTableTargets(
-      selectedJokerSwapReplacementCard,
+    () => getHandCardsTableTargets(
+      selectedMeldCards,
       serverState?.melds ?? [],
       serverState?.youPlayerId,
       canDiscard,
     ),
-    [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds, serverState?.youPlayerId],
+    [canDiscard, selectedMeldCards, serverState?.melds, serverState?.youPlayerId],
   )
   const swappableMeldJokerIds = selectedCardTableTargets.swappableMeldJokerIds
   const ownMeldAttachTargetIds = selectedCardTableTargets.ownMeldAttachTargetIds
@@ -316,11 +316,12 @@ export default function Game() {
     : selectedMeldCards.length >= 3
   const isSelectedCombinationValid =
     hasEnoughSelectedCombinationCards && (discardPileCombinationCard ? !discardPilePickupError : !selectedMeldError)
+  const canAttachSelectedCards = ownMeldAttachTargetIds.size > 0
   const selectedCardOutlineColor =
     selectedMeldCards.length === 1
-      ? (swappableMeldJokerIds.size > 0 || ownMeldAttachTargetIds.size > 0 ? '#15803d' : undefined)
+      ? (swappableMeldJokerIds.size > 0 || canAttachSelectedCards ? '#15803d' : undefined)
       : selectedMeldCards.length > 0
-        ? (isSelectedCombinationValid ? '#15803d' : '#b91c1c')
+        ? (isSelectedCombinationValid || canAttachSelectedCards ? '#15803d' : '#b91c1c')
         : undefined
   const discardPilePickupCombination = discardPilePickupPlan?.meldCards ?? (
     discardPileCombinationCard
@@ -390,12 +391,17 @@ export default function Game() {
       }
 
       if (selectedMeldCards.length > 0) {
+        if (canAttachSelectedCards && selectedMeldError) {
+          const cardLabel = selectedMeldCards.length === 1 ? 'card' : `${selectedMeldCards.length} cards`
+          return `Click a highlighted combination of yours to attach ${selectedMeldCards.length === 1 ? 'this' : 'these'} ${cardLabel}, or select more cards for a new combination.`
+        }
+
         return selectedMeldError
           ? `Combination not ready: ${selectedMeldError}`
           : `Selected combination is worth ${selectedMeldPoints} points.`
       }
 
-      return 'Select one hand card to discard, attach to one of your combinations, swap for a table joker, or select three or more cards to put down a combination.'
+      return 'Select hand cards to discard, attach to one of your combinations, swap for a table joker, or put down a new combination.'
     }
 
     return statusText(serverState)
@@ -414,6 +420,7 @@ export default function Game() {
     selectedMeldCards.length,
     selectedMeldError,
     selectedMeldPoints,
+    canAttachSelectedCards,
     ownMeldAttachTargetIds.size,
     swappableMeldJokerIds.size,
   ])
@@ -771,33 +778,45 @@ export default function Game() {
       return
     }
 
-    if (selectedMeldCardIds.length !== 1) {
-      setGameError('Select exactly one card from your hand, then click one of your combinations.')
+    if (selectedMeldCardIds.length === 0) {
+      setGameError('Select one or more cards from your hand, then click one of your combinations.')
       return
     }
 
-    handleAttachToMeldWithCard(meldId, selectedMeldCardIds[0])
+    handleAttachToMeldWithCards(meldId, selectedMeldCardIds)
   }
 
   function handleAttachToMeldWithCard(meldId: string, cardId: string) {
+    handleAttachToMeldWithCards(meldId, [cardId])
+  }
+
+  function handleAttachToMeldWithCards(meldId: string, cardIds: string[]) {
     if (!canDiscard) {
       return
     }
 
-    const card = hand.find((candidateCard) => candidateCard.id === cardId)
+    const uniqueCardIds = [...new Set(cardIds)]
     const meld = serverState?.melds.find((candidateMeld) => candidateMeld.id === meldId)
+    const cards = uniqueCardIds
+      .map((cardId) => hand.find((candidateCard) => candidateCard.id === cardId))
+      .filter((card): card is CardType => Boolean(card))
 
-    if (!card || !meld || !serverState?.youPlayerId || !canAttachCardToOwnMeld(meld, serverState.youPlayerId, card)) {
-      setGameError('That card cannot be added to this combination.')
+    if (
+      !meld ||
+      !serverState?.youPlayerId ||
+      cards.length !== uniqueCardIds.length ||
+      !canAttachCardsToOwnMeld(meld, serverState.youPlayerId, cards)
+    ) {
+      setGameError('Those cards cannot be added to this combination.')
       return
     }
 
     setGameError('')
     setSelectedDiscardPileStartIndex(null)
-    const action = createAttachToMeldAction(meldId, cardId)
+    const action = createAttachToMeldAction(meldId, uniqueCardIds)
 
     if (!applyOptimisticAction(action)) {
-      setGameError('That card cannot be attached right now.')
+      setGameError('Those cards cannot be attached right now.')
       return
     }
 
@@ -805,7 +824,7 @@ export default function Game() {
     socket.emit('attach_to_meld', {
       clientActionId: action.id,
       meldId,
-      cardId,
+      cardIds: uniqueCardIds,
     })
   }
 

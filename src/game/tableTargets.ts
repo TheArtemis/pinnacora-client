@@ -1,5 +1,5 @@
 import type { Card } from './cardTypes'
-import { canAttachCardToOwnMeld, canReplaceMeldJoker } from './melds'
+import { canAttachCardsToOwnMeld, canReplaceMeldJoker } from './melds'
 import type { ServerGameMeld } from './serverTypes'
 
 export type HandCardTableTargets = {
@@ -12,13 +12,13 @@ const emptyTargets: HandCardTableTargets = {
   swappableMeldJokerIds: new Set(),
 }
 
-export function getHandCardTableTargets(
-  card: Card | undefined,
+export function getHandCardsTableTargets(
+  cards: Card[],
   melds: ServerGameMeld[],
   viewerPlayerId: string | undefined,
   canUseTableTargets: boolean,
 ): HandCardTableTargets {
-  if (!card || !viewerPlayerId || !canUseTableTargets) {
+  if (cards.length === 0 || !viewerPlayerId || !canUseTableTargets) {
     return emptyTargets
   }
 
@@ -26,13 +26,19 @@ export function getHandCardTableTargets(
   const swappableMeldJokerIds = new Set<string>()
 
   for (const meld of melds) {
-    if (canAttachCardToOwnMeld(meld, viewerPlayerId, card)) {
+    if (canAttachCardsToOwnMeld(meld, viewerPlayerId, cards)) {
       ownMeldAttachTargetIds.add(meld.id)
     }
+  }
 
-    for (const meldCard of meld.cards) {
-      if (canReplaceMeldJoker(meld, meldCard.id, card)) {
-        swappableMeldJokerIds.add(`${meld.id}:${meldCard.id}`)
+  if (cards.length === 1) {
+    const [card] = cards
+
+    for (const meld of melds) {
+      for (const meldCard of meld.cards) {
+        if (canReplaceMeldJoker(meld, meldCard.id, card)) {
+          swappableMeldJokerIds.add(`${meld.id}:${meldCard.id}`)
+        }
       }
     }
   }

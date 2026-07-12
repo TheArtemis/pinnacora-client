@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
-import { getHandCardTableTargets, handCardHasTableTargets } from '../../game/tableTargets'
+import { getHandCardsTableTargets, handCardHasTableTargets } from '../../game/tableTargets'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
 import DiscardPile from './DiscardPile'
@@ -37,33 +37,32 @@ export default function SceneContent(props: SceneContentProps) {
     [draggedHandCardId, props.hand],
   )
 
-  const selectedHandCard = useMemo(() => {
-    if (props.selectedCardIds.size !== 1) {
-      return undefined
-    }
-
-    const [selectedCardId] = props.selectedCardIds
-    return props.hand.find((card) => card.id === selectedCardId)
-  }, [props.hand, props.selectedCardIds])
-
-  const interactionHandCard = draggedHandCard ?? selectedHandCard
-
-  const interactionTableTargets = useMemo(
-    () => getHandCardTableTargets(interactionHandCard, melds, viewerPlayerId, props.canDiscard),
-    [interactionHandCard, melds, props.canDiscard, viewerPlayerId],
+  const selectedHandCards = useMemo(
+    () => props.hand.filter((card) => props.selectedCardIds.has(card.id)),
+    [props.hand, props.selectedCardIds],
   )
 
-  const activeHandCardId = useMemo(() => {
+  const interactionHandCards = useMemo(
+    () => (draggedHandCard ? [draggedHandCard] : selectedHandCards),
+    [draggedHandCard, selectedHandCards],
+  )
+
+  const interactionTableTargets = useMemo(
+    () => getHandCardsTableTargets(interactionHandCards, melds, viewerPlayerId, props.canDiscard),
+    [interactionHandCards, melds, props.canDiscard, viewerPlayerId],
+  )
+
+  const activeHandCardIds = useMemo(() => {
     if (draggedHandCardId) {
-      return draggedHandCardId
+      return new Set([draggedHandCardId])
     }
 
-    if (!selectedHandCard || !handCardHasTableTargets(interactionTableTargets)) {
-      return null
+    if (!handCardHasTableTargets(interactionTableTargets)) {
+      return new Set<string>()
     }
 
-    return selectedHandCard.id
-  }, [draggedHandCardId, interactionTableTargets, selectedHandCard])
+    return new Set(selectedHandCards.map((card) => card.id))
+  }, [draggedHandCardId, interactionTableTargets, selectedHandCards])
 
   const isHandCardDragging = draggedHandCardId !== null
 
@@ -214,7 +213,7 @@ export default function SceneContent(props: SceneContentProps) {
         isGatheringForSort={props.isHandGatheringForSort}
         isCloseUp={props.isLocalHandFocused}
         handHoverCameraFocusEnabled={props.handHoverCameraFocusEnabled}
-        activeHandCardId={activeHandCardId}
+        activeHandCardIds={activeHandCardIds}
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}

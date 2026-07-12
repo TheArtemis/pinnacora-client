@@ -26,7 +26,7 @@ type LocalHandProps = Pick<
   isCloseUp: boolean
   handHoverCameraFocusEnabled: boolean
   selectedCardOutlineColor?: string
-  activeHandCardId: string | null
+  activeHandCardIds: Set<string>
   onHandAreaFocusChange: (isFocused: boolean) => void
   onHandCardDragChange: (cardId: string | null) => void
   onHandCardDragEnd: (cardId: string) => void
@@ -41,7 +41,7 @@ export default function LocalHand({
   isCloseUp,
   handHoverCameraFocusEnabled,
   selectedCardOutlineColor,
-  activeHandCardId,
+  activeHandCardIds,
   onHandAreaFocusChange,
   onHandCardClick,
   onHandCardReorder,
@@ -82,11 +82,11 @@ export default function LocalHand({
     handHoverCameraFocusEnabled && (isHandAreaHovered || isDraggingOverActiveHandArea)
 
   function isCardPointerEnabled(cardId: string) {
-    if (!activeHandCardId) {
+    if (activeHandCardIds.size === 0) {
       return true
     }
 
-    return cardId === activeHandCardId
+    return activeHandCardIds.has(cardId)
   }
 
   useEffect(() => {
