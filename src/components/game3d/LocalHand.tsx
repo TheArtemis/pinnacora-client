@@ -29,7 +29,12 @@ function handCardInteractionLift(isSelected: boolean, isHovered: boolean, disabl
 
 type LocalHandProps = Pick<
   GameTableSceneProps,
-  'selectedCardIds' | 'onHandCardClick' | 'onHandCardReorder' | 'onHandCardHover'
+  | 'selectedCardIds'
+  | 'highlightedDrawnCardIds'
+  | 'onHandCardClick'
+  | 'onHandCardReorder'
+  | 'onDismissDrawnCardHighlight'
+  | 'onHandCardHover'
 > & {
   cards: CardType[]
   hiddenCardIds: Set<string>
@@ -47,6 +52,7 @@ type LocalHandProps = Pick<
 export default function LocalHand({
   cards,
   selectedCardIds,
+  highlightedDrawnCardIds,
   hiddenCardIds,
   puttingDownCardIds,
   isGatheringForSort,
@@ -56,6 +62,7 @@ export default function LocalHand({
   onHandAreaFocusChange,
   onHandCardClick,
   onHandCardReorder,
+  onDismissDrawnCardHighlight,
   onHandCardDragChange,
   onHandCardDragEnd,
   onHandCardDragHandAreaChange,
@@ -216,10 +223,11 @@ export default function LocalHand({
     handlePointerMove(event.nativeEvent.clientX, event.nativeEvent.clientY)
   }
 
-  function handleCardOver(event: ThreeEvent<PointerEvent>, index: number) {
+  function handleCardOver(event: ThreeEvent<PointerEvent>, index: number, card: CardType) {
     event.stopPropagation()
     handleHandAreaOver()
     setHoveredCardIndex(index)
+    onDismissDrawnCardHighlight(card.id)
     handlePointerOverReorder(event.nativeEvent.clientX, event.nativeEvent.clientY, cards[index])
   }
 
@@ -260,8 +268,10 @@ export default function LocalHand({
           : [x, 2.05, localHandBaseZ + closeUpZOffset]
         const resolvedPosition: [number, number, number] = isDragging ? dragVisualPositionRef.current : targetPosition
         const isSelected = selectedCardIds.has(card.id)
+        const isDrawnHighlighted = highlightedDrawnCardIds.has(card.id)
         const isHovered = hoveredCardIndex === index || isDragging
-        const interactionLift = handCardInteractionLift(isSelected, isHovered, isDraggingFlatOnTable)
+        const isVisuallyHighlighted = isHovered || isDrawnHighlighted
+        const interactionLift = handCardInteractionLift(isSelected, isVisuallyHighlighted, isDraggingFlatOnTable)
         const interactionPosition: [number, number, number] = [
           targetPosition[0] + interactionOffsetX,
           targetPosition[1] + interactionLift,
@@ -287,7 +297,7 @@ export default function LocalHand({
               disableLift={isDraggingFlatOnTable}
               selected={isSelected}
               outlineColor={selectedCardOutlineColor}
-              hovered={hoveredCardIndex === index || isDragging}
+              hovered={isVisuallyHighlighted}
               opacity={isPuttingDown ? 0 : 1}
               scale={isPuttingDown ? 0.62 : 1}
             />
@@ -301,7 +311,7 @@ export default function LocalHand({
                 onPointerDown={(event) => handleCardPointerDown(event, card, targetPosition)}
                 onPointerUp={handleCardPointerUp}
                 onPointerMove={handleCardPointerMove}
-                onPointerOver={(event) => handleCardOver(event, index)}
+                onPointerOver={(event) => handleCardOver(event, index, card)}
                 onPointerOut={(event) => handleCardOut(event, index)}
               />
             ) : null}

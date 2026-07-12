@@ -19,6 +19,7 @@ import { useMeldSelection } from './hooks/useMeldSelection'
 import { useOptimisticGameState } from './hooks/useOptimisticGameState'
 import { useSortedHand } from './hooks/useSortedHand'
 import { useTableHint } from './hooks/useTableHint'
+import { useDrawnCardHighlight } from './hooks/useDrawnCardHighlight'
 
 export default function Game() {
   const navigate = useNavigate()
@@ -192,6 +193,12 @@ export default function Game() {
     [pendingActions],
   )
 
+  const { highlightedDrawnCardIds, dismissDrawnCardHighlight } = useDrawnCardHighlight(
+    hand,
+    serverState,
+    pendingActions,
+  )
+
   const tableHint = useTableHint({
     serverState,
     canPickUpDiscardPile,
@@ -269,6 +276,7 @@ export default function Game() {
           hiddenHandCardIds={hiddenHandCardIds}
           isHandGatheringForSort={isHandGatheringForSort}
           selectedCardIds={sceneSelectedCardIds}
+          highlightedDrawnCardIds={highlightedDrawnCardIds}
           selectedCardOutlineColor={outlineColor}
           opponentHoveredHandIndexes={opponentHoveredHandIndexes}
           discardPileHighlightStartIndex={resolvedStartIndex ?? highlightStartIndex}
@@ -290,6 +298,7 @@ export default function Game() {
             handleToggleMeldCard(card)
           }}
           onHandCardReorder={handleHandCardReorder}
+          onDismissDrawnCardHighlight={dismissDrawnCardHighlight}
           onHandCardHover={handleHandCardHover}
           onHandSortModeChange={handleChangeHandSortMode}
           onDiscardPileCardClick={gameActions.handlePickUpDiscardPile}

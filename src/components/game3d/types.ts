@@ -9,6 +9,7 @@ export type GameTableSceneProps = {
   hiddenHandCardIds: Set<string>
   isHandGatheringForSort: boolean
   selectedCardIds: Set<string>
+  highlightedDrawnCardIds: Set<string>
   selectedCardOutlineColor?: string
   opponentHoveredHandIndexes: Set<number>
   discardPileHighlightStartIndex: number | null
@@ -27,6 +28,7 @@ export type GameTableSceneProps = {
   onDrawCard: () => void
   onHandCardClick: (card: CardType) => void
   onHandCardReorder: (draggedCardId: string, targetCardId: string) => void
+  onDismissDrawnCardHighlight: (cardId: string) => void
   onHandCardHover: (cardIndexes: number[]) => void
   onHandSortModeChange: (sortMode: HandSortMode) => void
   onDiscardPileCardClick: (index: number) => void

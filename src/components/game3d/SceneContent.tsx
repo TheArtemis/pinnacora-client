@@ -218,6 +218,7 @@ export default function SceneContent(props: SceneContentProps) {
       <LocalHand
         cards={props.hand}
         selectedCardIds={props.selectedCardIds}
+        highlightedDrawnCardIds={props.highlightedDrawnCardIds}
         selectedCardOutlineColor={props.selectedCardOutlineColor}
         hiddenCardIds={props.hiddenHandCardIds}
         puttingDownCardIds={puttingDownCardIds}
@@ -227,6 +228,7 @@ export default function SceneContent(props: SceneContentProps) {
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}
+        onDismissDrawnCardHighlight={props.onDismissDrawnCardHighlight}
         onHandCardDragChange={handleHandCardDragChange}
         onHandCardDragEnd={handleHandCardDragEnd}
         onHandCardDragHandAreaChange={handleDragHandAreaChange}
