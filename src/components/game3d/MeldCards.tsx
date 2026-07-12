@@ -13,11 +13,10 @@ const LOCAL_MELD_JOKER_SWAP_Z_LIFT = 2.85
 type MeldCardsProps = {
   state: ServerGameState | null
   swappableMeldJokerIds: Set<string>
-  draggedSwappableMeldJokerIds: Set<string>
   discardPileMeldTargetIds: Set<string>
   discardPileJokerTargetIds: Set<string>
   ownMeldAttachTargetIds: Set<string>
-  draggedOwnMeldAttachTargetIds: Set<string>
+  isHandCardDragging: boolean
   canSwapJoker: boolean
   onMeldJokerClick: (meldId: string, jokerCardId: string) => void
   onMeldJokerDropTargetChange: (dropTarget: { meldId: string; jokerCardId: string } | null) => void
@@ -38,11 +37,10 @@ function isCompletedMeld(meld: ServerGameState['melds'][number]) {
 export default function MeldCards({
   state,
   swappableMeldJokerIds,
-  draggedSwappableMeldJokerIds,
   discardPileMeldTargetIds,
   discardPileJokerTargetIds,
   ownMeldAttachTargetIds,
-  draggedOwnMeldAttachTargetIds,
+  isHandCardDragging,
   canSwapJoker,
   onMeldJokerClick,
   onMeldJokerDropTargetChange,
@@ -191,28 +189,22 @@ export default function MeldCards({
               const isJoker = card.rank === 'JOKER' || card.suit === 'joker'
               const isClickableJoker = canSwapJoker && isJoker
               const isSwappableJoker = swappableMeldJokerIds.has(swappableMeldJokerId)
-              const isDraggedSwappableJoker = draggedSwappableMeldJokerIds.has(swappableMeldJokerId)
               const isDiscardPileMeldTarget = discardPileMeldTargetIds.has(meld.id)
               const isDiscardPileJokerTarget = discardPileJokerTargetIds.has(swappableMeldJokerId)
               const isOwnMeldAttachTarget = isLocalMeld && ownMeldAttachTargetIds.has(meld.id)
-              const isDraggedOwnMeldAttachTarget = isLocalMeld && draggedOwnMeldAttachTargetIds.has(meld.id)
               const isHoveredJoker = hoveredMeldJokerId === swappableMeldJokerId
-              const shouldElevateMeldAboveHand =
-                isLocalMeld && (isDraggedSwappableJoker || isDraggedOwnMeldAttachTarget)
+              const shouldElevateMeldAboveHand = isLocalMeld && (isOwnMeldAttachTarget || isSwappableJoker)
               const jokerSwapZLift = shouldElevateMeldAboveHand ? LOCAL_MELD_JOKER_SWAP_Z_LIFT : 0
               const interactionY = shouldElevateMeldAboveHand
                 ? localMeldInteractionY + originalIndex * 0.006
                 : tableCardBaseY + originalIndex * 0.006
               const isHighlightedTarget =
                 isSwappableJoker ||
-                isDraggedSwappableJoker ||
                 isDiscardPileMeldTarget ||
                 isDiscardPileJokerTarget ||
-                isOwnMeldAttachTarget ||
-                isDraggedOwnMeldAttachTarget
-              const hasAttachInteraction = isOwnMeldAttachTarget || isDraggedOwnMeldAttachTarget
-              const hasPointerInteraction =
-                isClickableJoker || isDraggedSwappableJoker || hasAttachInteraction
+                isOwnMeldAttachTarget
+              const isDragDropTarget = isHandCardDragging && (isSwappableJoker || isOwnMeldAttachTarget)
+              const hasPointerInteraction = isClickableJoker || isDragDropTarget || isOwnMeldAttachTarget
               const { slotIndex, stackLayer } = sequenceMeldCardSlot(originalIndex, visibleCards.length)
               const resolvedSlotIndex = usesCompactSequenceLayout ? slotIndex : visibleCardIndex
               const middleStackOffset = usesCompactSequenceLayout && stackLayer > 0 ? stackLayer * MELOD_SEQUENCE_MIDDLE_STACK_OFFSET : 0
@@ -238,11 +230,9 @@ export default function MeldCards({
                   selected={isHighlightedTarget}
                   hovered={
                     isHoveredJoker ||
-                    isDraggedSwappableJoker ||
                     isDiscardPileMeldTarget ||
                     isDiscardPileJokerTarget ||
-                    isOwnMeldAttachTarget ||
-                    isDraggedOwnMeldAttachTarget
+                    isHighlightedTarget
                   }
                   outlineColor={isHighlightedTarget ? '#15803d' : undefined}
                   fidgetTrigger={fidgetTriggers.get(meldCardId) ?? 0}
@@ -266,10 +256,10 @@ export default function MeldCards({
                     if (isClickableJoker) {
                       setHoveredMeldJokerId(swappableMeldJokerId)
                     }
-                    if (isDraggedSwappableJoker) {
+                    if (isDragDropTarget && isSwappableJoker) {
                       onMeldJokerDropTargetChange({ meldId: meld.id, jokerCardId: card.id })
                     }
-                    if (isDraggedOwnMeldAttachTarget) {
+                    if (isDragDropTarget && isOwnMeldAttachTarget) {
                       onAttachToMeldDropTargetChange(meld.id)
                     }
                   } : undefined}
@@ -277,10 +267,10 @@ export default function MeldCards({
                     if (isClickableJoker) {
                       setHoveredMeldJokerId(null)
                     }
-                    if (isDraggedSwappableJoker) {
+                    if (isDragDropTarget && isSwappableJoker) {
                       onMeldJokerDropTargetChange(null)
                     }
-                    if (isDraggedOwnMeldAttachTarget) {
+                    if (isDragDropTarget && isOwnMeldAttachTarget) {
                       onAttachToMeldDropTargetChange(null)
                     }
                   } : undefined}

@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
-import { canAttachCardToOwnMeld, canReplaceMeldJoker } from '../../game/melds'
+import { getHandCardTableTargets, handCardHasTableTargets } from '../../game/tableTargets'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
 import DiscardPile from './DiscardPile'
@@ -15,131 +15,103 @@ import { TABLE, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
 import type { SceneContentProps } from './types'
 
+type TableDropTarget =
+  | { type: 'attach'; meldId: string }
+  | { type: 'swap_joker'; meldId: string; jokerCardId: string }
+  | { type: 'discard' }
+
 export default function SceneContent(props: SceneContentProps) {
   const discardPile = props.state?.discardPile ?? []
   const tableCardsRef = useRef<Group>(null)
   const [draggedHandCardId, setDraggedHandCardId] = useState<string | null>(null)
-  const isDiscardDropTargetHoveredRef = useRef(false)
-  const meldJokerDropTargetRef = useRef<{ meldId: string; jokerCardId: string } | null>(null)
-  const meldAttachDropTargetRef = useRef<string | null>(null)
+  const tableDropTargetRef = useRef<TableDropTarget | null>(null)
   const puttingDownCardIds = useMemo(
     () => new Set(props.puttingDownCards.map((card) => card.id)),
     [props.puttingDownCards],
   )
   const viewerPlayerId = localPlayerId(props.state)
-  const draggedSwappableMeldJokerIds = useMemo(() => {
-    const draggedCard = props.hand.find((card) => card.id === draggedHandCardId)
+  const melds = props.state?.melds ?? []
 
-    if (!props.canDiscard || !draggedCard) {
-      return new Set<string>()
+  const draggedHandCard = useMemo(
+    () => (draggedHandCardId ? props.hand.find((card) => card.id === draggedHandCardId) : undefined),
+    [draggedHandCardId, props.hand],
+  )
+
+  const selectedHandCard = useMemo(() => {
+    if (props.selectedCardIds.size !== 1) {
+      return undefined
     }
 
-    const swappableJokerIds = new Set<string>()
+    const [selectedCardId] = props.selectedCardIds
+    return props.hand.find((card) => card.id === selectedCardId)
+  }, [props.hand, props.selectedCardIds])
 
-    for (const meld of props.state?.melds ?? []) {
-      for (const card of meld.cards) {
-        if (canReplaceMeldJoker(meld, card.id, draggedCard)) {
-          swappableJokerIds.add(`${meld.id}:${card.id}`)
-        }
-      }
+  const interactionHandCard = draggedHandCard ?? selectedHandCard
+
+  const interactionTableTargets = useMemo(
+    () => getHandCardTableTargets(interactionHandCard, melds, viewerPlayerId, props.canDiscard),
+    [interactionHandCard, melds, props.canDiscard, viewerPlayerId],
+  )
+
+  const activeHandCardId = useMemo(() => {
+    if (draggedHandCardId) {
+      return draggedHandCardId
     }
 
-    return swappableJokerIds
-  }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds])
-
-  const draggedOwnMeldAttachTargetIds = useMemo(() => {
-    const draggedCard = props.hand.find((card) => card.id === draggedHandCardId)
-
-    if (!props.canDiscard || !draggedCard || !viewerPlayerId) {
-      return new Set<string>()
+    if (!selectedHandCard || !handCardHasTableTargets(interactionTableTargets)) {
+      return null
     }
 
-    return new Set(
-      props.state?.melds
-        .filter((meld) => canAttachCardToOwnMeld(meld, viewerPlayerId, draggedCard))
-        .map((meld) => meld.id) ?? [],
-    )
-  }, [draggedHandCardId, props.canDiscard, props.hand, props.state?.melds, viewerPlayerId])
+    return selectedHandCard.id
+  }, [draggedHandCardId, interactionTableTargets, selectedHandCard])
 
-  const ownMeldAttachTargetIdsOnTable = useMemo(() => {
-    if (!viewerPlayerId) {
-      return new Set<string>()
-    }
-
-    const ownAttachIds = new Set<string>()
-
-    for (const meldId of props.ownMeldAttachTargetIds) {
-      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
-
-      if (meld?.playerId === viewerPlayerId) {
-        ownAttachIds.add(meldId)
-      }
-    }
-
-    for (const meldId of draggedOwnMeldAttachTargetIds) {
-      ownAttachIds.add(meldId)
-    }
-
-    return ownAttachIds
-  }, [draggedOwnMeldAttachTargetIds, props.ownMeldAttachTargetIds, props.state?.melds, viewerPlayerId])
-  const ownSwappableMeldJokerIds = useMemo(() => {
-    if (!viewerPlayerId) {
-      return new Set<string>()
-    }
-
-    const ownJokerIds = new Set<string>()
-
-    for (const jokerId of props.swappableMeldJokerIds) {
-      const meldId = jokerId.split(':')[0]
-      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
-
-      if (meld?.playerId === viewerPlayerId) {
-        ownJokerIds.add(jokerId)
-      }
-    }
-
-    for (const jokerId of draggedSwappableMeldJokerIds) {
-      const meldId = jokerId.split(':')[0]
-      const meld = props.state?.melds.find((candidateMeld) => candidateMeld.id === meldId)
-
-      if (meld?.playerId === viewerPlayerId) {
-        ownJokerIds.add(jokerId)
-      }
-    }
-
-    return ownJokerIds
-  }, [draggedSwappableMeldJokerIds, props.state?.melds, props.swappableMeldJokerIds, viewerPlayerId])
-  const passthroughHandInteractionForOwnJokerSwap =
-    ownSwappableMeldJokerIds.size > 0 || ownMeldAttachTargetIdsOnTable.size > 0
   const isHandCardDragging = draggedHandCardId !== null
 
-  function clearHandDragState() {
-    setDraggedHandCardId(null)
-    isDiscardDropTargetHoveredRef.current = false
-    meldJokerDropTargetRef.current = null
-    meldAttachDropTargetRef.current = null
+  function clearTableDropTarget() {
+    tableDropTargetRef.current = null
   }
 
-  const handCardIdsKey = props.hand.map((card) => card.id).join('|')
-  const ownMeldAttachTargetKey = [...props.ownMeldAttachTargetIds].sort().join('|')
+  function handleHandCardDragChange(cardId: string | null) {
+    setDraggedHandCardId(cardId)
+
+    if (!cardId) {
+      clearTableDropTarget()
+    }
+  }
+
+  function handleHandCardDragEnd(cardId: string) {
+    const dropTarget = tableDropTargetRef.current
+
+    setDraggedHandCardId(null)
+    clearTableDropTarget()
+
+    if (!props.canDiscard) {
+      return
+    }
+
+    if (dropTarget?.type === 'swap_joker') {
+      props.onMeldJokerDrop(dropTarget.meldId, dropTarget.jokerCardId, cardId)
+      return
+    }
+
+    if (dropTarget?.type === 'attach') {
+      props.onAttachToMeldDrop(dropTarget.meldId, cardId)
+      return
+    }
+
+    if (dropTarget?.type === 'discard') {
+      props.onDiscardHandCard(cardId)
+    }
+  }
 
   useEffect(() => {
     if (props.canDiscard) {
       return
     }
 
-    clearHandDragState()
+    setDraggedHandCardId(null)
+    clearTableDropTarget()
   }, [props.canDiscard])
-
-  useEffect(() => {
-    clearHandDragState()
-  }, [handCardIdsKey])
-
-  useEffect(() => {
-    if (props.ownMeldAttachTargetIds.size === 0) {
-      clearHandDragState()
-    }
-  }, [ownMeldAttachTargetKey, props.ownMeldAttachTargetIds.size])
 
   useFrame((_, delta) => {
     if (!tableCardsRef.current) {
@@ -152,36 +124,6 @@ export default function SceneContent(props: SceneContentProps) {
     tableCardsRef.current.position.y = MathUtils.damp(tableCardsRef.current.position.y, targetY, 7.2, delta)
     tableCardsRef.current.position.z = MathUtils.damp(tableCardsRef.current.position.z, targetZ, 7.2, delta)
   })
-
-  function handleHandCardDragChange(cardId: string | null) {
-    setDraggedHandCardId(cardId)
-
-    if (!cardId) {
-      isDiscardDropTargetHoveredRef.current = false
-      meldJokerDropTargetRef.current = null
-      meldAttachDropTargetRef.current = null
-    }
-  }
-
-  function handleHandCardDragEnd(cardId: string) {
-    const meldJokerDropTarget = meldJokerDropTargetRef.current
-    const meldAttachDropTarget = meldAttachDropTargetRef.current
-    const isDiscardDropTargetHovered = isDiscardDropTargetHoveredRef.current
-
-    clearHandDragState()
-
-    if (!props.canDiscard) {
-      return
-    }
-
-    if (meldJokerDropTarget) {
-      props.onMeldJokerDrop(meldJokerDropTarget.meldId, meldJokerDropTarget.jokerCardId, cardId)
-    } else if (meldAttachDropTarget) {
-      props.onAttachToMeldDrop(meldAttachDropTarget, cardId)
-    } else if (isDiscardDropTargetHovered) {
-      props.onDiscardHandCard(cardId)
-    }
-  }
 
   return (
     <>
@@ -213,26 +155,50 @@ export default function SceneContent(props: SceneContentProps) {
           onDiscardPileCardHover={props.onDiscardPileCardHover}
           isHandCardDragging={isHandCardDragging}
           onDiscardDropTargetChange={(isHovered) => {
-            isDiscardDropTargetHoveredRef.current = isHovered
+            if (isHovered) {
+              tableDropTargetRef.current = { type: 'discard' }
+              return
+            }
+
+            if (tableDropTargetRef.current?.type === 'discard') {
+              tableDropTargetRef.current = null
+            }
           }}
           onDiscardSelectedCard={props.onDiscardSelectedCard}
         />
         <MeldCards
           state={props.state}
-          swappableMeldJokerIds={props.swappableMeldJokerIds}
-          draggedSwappableMeldJokerIds={draggedSwappableMeldJokerIds}
+          swappableMeldJokerIds={interactionTableTargets.swappableMeldJokerIds}
           discardPileMeldTargetIds={props.discardPileMeldTargetIds}
           discardPileJokerTargetIds={props.discardPileJokerTargetIds}
-          ownMeldAttachTargetIds={props.ownMeldAttachTargetIds}
-          draggedOwnMeldAttachTargetIds={draggedOwnMeldAttachTargetIds}
+          ownMeldAttachTargetIds={interactionTableTargets.ownMeldAttachTargetIds}
+          isHandCardDragging={isHandCardDragging}
           canSwapJoker={props.canDiscard}
           onMeldJokerClick={props.onMeldJokerClick}
           onMeldJokerDropTargetChange={(dropTarget) => {
-            meldJokerDropTargetRef.current = dropTarget
+            if (dropTarget) {
+              tableDropTargetRef.current = {
+                type: 'swap_joker',
+                meldId: dropTarget.meldId,
+                jokerCardId: dropTarget.jokerCardId,
+              }
+              return
+            }
+
+            if (tableDropTargetRef.current?.type === 'swap_joker') {
+              tableDropTargetRef.current = null
+            }
           }}
           onAttachToMeldClick={props.onAttachToMeld}
           onAttachToMeldDropTargetChange={(meldId) => {
-            meldAttachDropTargetRef.current = meldId
+            if (meldId) {
+              tableDropTargetRef.current = { type: 'attach', meldId }
+              return
+            }
+
+            if (tableDropTargetRef.current?.type === 'attach') {
+              tableDropTargetRef.current = null
+            }
           }}
           onDiscardPileMeldTargetClick={props.onDiscardPileMeldTargetClick}
           onDiscardPileJokerTargetClick={props.onDiscardPileJokerTargetClick}
@@ -248,14 +214,13 @@ export default function SceneContent(props: SceneContentProps) {
         isGatheringForSort={props.isHandGatheringForSort}
         isCloseUp={props.isLocalHandFocused}
         handHoverCameraFocusEnabled={props.handHoverCameraFocusEnabled}
+        activeHandCardId={activeHandCardId}
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}
         onHandCardDragChange={handleHandCardDragChange}
         onHandCardDragEnd={handleHandCardDragEnd}
         onHandCardHover={props.onHandCardHover}
-        passthroughInteractionForOwnJokerSwap={passthroughHandInteractionForOwnJokerSwap}
-        passthroughUnselectedHandCards={props.ownMeldAttachTargetIds.size > 0}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
     </>

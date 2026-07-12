@@ -7,6 +7,7 @@ import MeldOrderPicker from '../components/MeldOrderPicker'
 import { devMode } from '../config/dev'
 import type { Card as CardType } from '../game/cardTypes'
 import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, hasAmbiguousMeldOrder, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
+import { getHandCardTableTargets } from '../game/tableTargets'
 import {
   createAttachToMeldAction,
   createDiscardCardAction,
@@ -153,7 +154,6 @@ export default function Game() {
   const [gameError, setGameError] = useState('')
   const [finishing, setFinishing] = useState(false)
   const [copiedGameLink, setCopiedGameLink] = useState(false)
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [selectedMeldCardIds, setSelectedMeldCardIds] = useState<string[]>([])
   const [meldOrderPickerCards, setMeldOrderPickerCards] = useState<CardType[] | null>(null)
   const [puttingDownCards, setPuttingDownCards] = useState<CardType[]>([])
@@ -190,37 +190,17 @@ export default function Game() {
       .filter((card): card is CardType => Boolean(card))
   }, [hand, selectedMeldCardIds])
   const selectedJokerSwapReplacementCard = selectedMeldCards.length === 1 ? selectedMeldCards[0] : undefined
-  const swappableMeldJokerIds = useMemo(() => {
-    if (!canDiscard || !selectedJokerSwapReplacementCard) {
-      return new Set<string>()
-    }
-
-    const meldJokerIds = new Set<string>()
-
-    for (const meld of serverState?.melds ?? []) {
-      for (const card of meld.cards) {
-        if (canReplaceMeldJoker(meld, card.id, selectedJokerSwapReplacementCard)) {
-          meldJokerIds.add(`${meld.id}:${card.id}`)
-        }
-      }
-    }
-
-    return meldJokerIds
-  }, [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds])
-  const ownMeldAttachTargetIds = useMemo(() => {
-    if (!canDiscard || !selectedJokerSwapReplacementCard || !serverState?.youPlayerId) {
-      return new Set<string>()
-    }
-
-    return new Set(
-      serverState.melds
-        .filter(
-          (meld) =>
-            canAttachCardToOwnMeld(meld, serverState.youPlayerId!, selectedJokerSwapReplacementCard),
-        )
-        .map((meld) => meld.id),
-    )
-  }, [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds, serverState?.youPlayerId])
+  const selectedCardTableTargets = useMemo(
+    () => getHandCardTableTargets(
+      selectedJokerSwapReplacementCard,
+      serverState?.melds ?? [],
+      serverState?.youPlayerId,
+      canDiscard,
+    ),
+    [canDiscard, selectedJokerSwapReplacementCard, serverState?.melds, serverState?.youPlayerId],
+  )
+  const swappableMeldJokerIds = selectedCardTableTargets.swappableMeldJokerIds
+  const ownMeldAttachTargetIds = selectedCardTableTargets.ownMeldAttachTargetIds
   const selectedMeldError = useMemo(
     () => (selectedMeldCards.length > 0 ? validateMeld(selectedMeldCards) : ''),
     [selectedMeldCards],
@@ -239,14 +219,19 @@ export default function Game() {
   const canSelectMeldCards = canPutDownMeld || canPickUpDiscardPile
   const discardPileHighlightStartIndex = hoveredDiscardPileStartIndex ?? selectedDiscardPileStartIndex
   const sceneSelectedCardIds = useMemo(() => {
-    const cardIds = new Set(selectedMeldCardIds)
+    const handIds = new Set(hand.map((card) => card.id))
 
-    if (selectedCardId) {
-      cardIds.add(selectedCardId)
-    }
+    return new Set(selectedMeldCardIds.filter((cardId) => handIds.has(cardId)))
+  }, [hand, selectedMeldCardIds])
 
-    return cardIds
-  }, [selectedCardId, selectedMeldCardIds])
+  useEffect(() => {
+    const handIds = new Set(hand.map((card) => card.id))
+
+    setSelectedMeldCardIds((currentCardIds) => {
+      const nextCardIds = currentCardIds.filter((cardId) => handIds.has(cardId))
+      return nextCardIds.length === currentCardIds.length ? currentCardIds : nextCardIds
+    })
+  }, [hand])
   const opponentHoveredHandIndexes = useMemo(() => {
     const opponentPlayerIds = new Set(
       serverState?.players
@@ -485,7 +470,6 @@ export default function Game() {
     function handleGameState(nextState: ServerGameState) {
       confirmedServerStateRef.current = nextState
       setServerState(projectOptimisticActions(nextState, pendingOptimisticActionsRef.current))
-      setSelectedCardId(null)
       setSelectedMeldCardIds([])
       setSelectedDiscardPileStartIndex(null)
       setHoveredDiscardPileStartIndex(null)
@@ -601,7 +585,6 @@ export default function Game() {
     }
 
     setGameError('')
-    setSelectedCardId(null)
     setSelectedMeldCardIds([])
     setSelectedDiscardPileStartIndex(null)
     const action = createDrawCardAction()
@@ -716,7 +699,6 @@ export default function Game() {
       return
     }
 
-    setSelectedCardId(null)
     socket.emit('discard_card', { clientActionId: action.id, cardId })
   }
 
@@ -775,7 +757,6 @@ export default function Game() {
       return
     }
 
-    setSelectedCardId(null)
     setSelectedMeldCardIds([])
     socket.emit('swap_meld_joker', {
       clientActionId: action.id,
@@ -820,7 +801,6 @@ export default function Game() {
       return
     }
 
-    setSelectedCardId(null)
     setSelectedMeldCardIds([])
     socket.emit('attach_to_meld', {
       clientActionId: action.id,
