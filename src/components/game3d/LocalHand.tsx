@@ -15,6 +15,18 @@ const LOCAL_HAND_CLOSEUP_Z_OFFSET = 0.58
 const handInteractionGeometry = new PlaneGeometry(1, CARD_HEIGHT)
 const handInteractionMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, side: DoubleSide, depthWrite: false })
 
+function handCardInteractionLift(isSelected: boolean, isHovered: boolean, disableLift: boolean) {
+  if (disableLift) {
+    return 0
+  }
+
+  if (isSelected) {
+    return isHovered ? 0.22 : 0.12
+  }
+
+  return isHovered ? 0.18 : 0
+}
+
 type LocalHandProps = Pick<
   GameTableSceneProps,
   'selectedCardIds' | 'onHandCardClick' | 'onHandCardReorder' | 'onHandCardHover'
@@ -26,10 +38,10 @@ type LocalHandProps = Pick<
   isCloseUp: boolean
   handHoverCameraFocusEnabled: boolean
   selectedCardOutlineColor?: string
-  activeHandCardIds: Set<string>
   onHandAreaFocusChange: (isFocused: boolean) => void
   onHandCardDragChange: (cardId: string | null) => void
-  onHandCardDragEnd: (cardId: string) => void
+  onHandCardDragEnd: (cardId: string, isOverHand: boolean) => void
+  onHandCardDragHandAreaChange?: (isOverHand: boolean) => void
 }
 
 export default function LocalHand({
@@ -41,12 +53,12 @@ export default function LocalHand({
   isCloseUp,
   handHoverCameraFocusEnabled,
   selectedCardOutlineColor,
-  activeHandCardIds,
   onHandAreaFocusChange,
   onHandCardClick,
   onHandCardReorder,
   onHandCardDragChange,
   onHandCardDragEnd,
+  onHandCardDragHandAreaChange,
   onHandCardHover,
 }: LocalHandProps) {
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null)
@@ -66,6 +78,7 @@ export default function LocalHand({
     startDrag,
     handlePointerMove,
     handlePointerOverReorder,
+    completeDrag,
   } = useHandCardDrag({
     cards,
     hiddenCardIds,
@@ -73,6 +86,7 @@ export default function LocalHand({
     enabled: true,
     onDragChange: onHandCardDragChange,
     onDragEnd: onHandCardDragEnd,
+    onDragHandAreaChange: onHandCardDragHandAreaChange,
     onCardClick: onHandCardClick,
     onReorder: onHandCardReorder,
   })
@@ -80,14 +94,6 @@ export default function LocalHand({
   const isDraggingOverActiveHandArea = Boolean(draggingCardId) && isDraggingOverHandArea
   const isHandPresentationActive =
     handHoverCameraFocusEnabled && (isHandAreaHovered || isDraggingOverActiveHandArea)
-
-  function isCardPointerEnabled(cardId: string) {
-    if (activeHandCardIds.size === 0) {
-      return true
-    }
-
-    return activeHandCardIds.has(cardId)
-  }
 
   useEffect(() => {
     onHandCardHover(hoveredCardIndex === null ? [] : [hoveredCardIndex])
@@ -192,7 +198,18 @@ export default function LocalHand({
   function handleCardPointerDown(event: ThreeEvent<PointerEvent>, card: CardType, startPosition: [number, number, number]) {
     event.stopPropagation()
     handleHandAreaOver()
-    startDrag(card, startPosition, event.nativeEvent.clientX, event.nativeEvent.clientY)
+    startDrag(
+      card,
+      startPosition,
+      event.nativeEvent.clientX,
+      event.nativeEvent.clientY,
+      event.nativeEvent.pointerId,
+    )
+  }
+
+  function handleCardPointerUp(event: ThreeEvent<PointerEvent>) {
+    event.stopPropagation()
+    completeDrag()
   }
 
   function handleCardPointerMove(event: ThreeEvent<PointerEvent>) {
@@ -242,10 +259,17 @@ export default function LocalHand({
           ? [0, 2.22 + index * 0.012, localHandBaseZ + closeUpZOffset - index * 0.008]
           : [x, 2.05, localHandBaseZ + closeUpZOffset]
         const resolvedPosition: [number, number, number] = isDragging ? dragVisualPositionRef.current : targetPosition
+        const isSelected = selectedCardIds.has(card.id)
+        const isHovered = hoveredCardIndex === index || isDragging
+        const interactionLift = handCardInteractionLift(isSelected, isHovered, isDraggingFlatOnTable)
+        const interactionPosition: [number, number, number] = [
+          targetPosition[0] + interactionOffsetX,
+          targetPosition[1] + interactionLift,
+          targetPosition[2],
+        ]
         const animateFrom: [number, number, number] | undefined = enteringCardIds.has(card.id)
           ? [deckPosition.x, tableCardBaseY + 0.34, deckPosition.z]
           : undefined
-        const pointerEnabled = isCardPointerEnabled(card.id)
 
         return (
           <group key={card.id}>
@@ -261,7 +285,7 @@ export default function LocalHand({
               layerOnTop
               snapToPosition={isDragging}
               disableLift={isDraggingFlatOnTable}
-              selected={selectedCardIds.has(card.id)}
+              selected={isSelected}
               outlineColor={selectedCardOutlineColor}
               hovered={hoveredCardIndex === index || isDragging}
               opacity={isPuttingDown ? 0 : 1}
@@ -271,11 +295,11 @@ export default function LocalHand({
               <mesh
                 geometry={handInteractionGeometry}
                 material={handInteractionMaterial}
-                position={[targetPosition[0] + interactionOffsetX, targetPosition[1], targetPosition[2]]}
+                position={interactionPosition}
                 rotation={targetRotation}
                 scale={[interactionWidth, 1, 1]}
-                raycast={pointerEnabled ? undefined : () => null}
                 onPointerDown={(event) => handleCardPointerDown(event, card, targetPosition)}
+                onPointerUp={handleCardPointerUp}
                 onPointerMove={handleCardPointerMove}
                 onPointerOver={(event) => handleCardOver(event, index)}
                 onPointerOut={(event) => handleCardOut(event, index)}

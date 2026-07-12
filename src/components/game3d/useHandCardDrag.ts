@@ -10,6 +10,7 @@ const DRAGGED_CARD_Y = tableCardBaseY + 0.34
 
 type HandDragState = {
   cardId: string
+  pointerId: number
   startX: number
   startY: number
   handStartPosition: Vector3
@@ -28,7 +29,8 @@ type UseHandCardDragOptions = {
   puttingDownCardIds: Set<string>
   enabled: boolean
   onDragChange: (cardId: string | null) => void
-  onDragEnd: (cardId: string) => void
+  onDragEnd: (cardId: string, isOverHand: boolean) => void
+  onDragHandAreaChange?: (isOverHand: boolean) => void
   onCardClick: (card: CardType) => void
   onReorder: (draggedCardId: string, targetCardId: string) => void
 }
@@ -40,6 +42,7 @@ export function useHandCardDrag({
   enabled,
   onDragChange,
   onDragEnd,
+  onDragHandAreaChange,
   onCardClick,
   onReorder,
 }: UseHandCardDragOptions) {
@@ -47,6 +50,7 @@ export function useHandCardDrag({
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [isDraggingOverHandArea, setIsDraggingOverHandArea] = useState(true)
   const dragStateRef = useRef<HandDragState | null>(null)
+  const draggingCardIdRef = useRef<string | null>(null)
   const dragVisualPositionRef = useRef<[number, number, number]>([0, 0, 0])
   const isDraggingOverHandAreaRef = useRef(true)
   const dragRaycasterRef = useRef(new Raycaster())
@@ -55,6 +59,7 @@ export function useHandCardDrag({
   const cardsRef = useRef(cards)
   const onDragChangeRef = useRef(onDragChange)
   const onDragEndRef = useRef(onDragEnd)
+  const onDragHandAreaChangeRef = useRef(onDragHandAreaChange)
   const onCardClickRef = useRef(onCardClick)
   const onReorderRef = useRef(onReorder)
 
@@ -62,6 +67,7 @@ export function useHandCardDrag({
     cardsRef.current = cards
     onDragChangeRef.current = onDragChange
     onDragEndRef.current = onDragEnd
+    onDragHandAreaChangeRef.current = onDragHandAreaChange
     onCardClickRef.current = onCardClick
     onReorderRef.current = onReorder
   })
@@ -73,6 +79,10 @@ export function useHandCardDrag({
 
     isDraggingOverHandAreaRef.current = nextIsDraggingOverHandArea
     setIsDraggingOverHandArea(nextIsDraggingOverHandArea)
+
+    if (dragStateRef.current?.moved) {
+      onDragHandAreaChangeRef.current?.(nextIsDraggingOverHandArea)
+    }
   }
 
   function updateDragVisualPosition(nextPosition: [number, number, number]) {
@@ -94,25 +104,34 @@ export function useHandCardDrag({
   }
 
   function cancelDrag() {
+    const activePointerId = dragStateRef.current?.pointerId
+
     dragStateRef.current = null
+    draggingCardIdRef.current = null
     setDraggingCardId(null)
     updateIsDraggingOverHandArea(true)
     onDragChangeRef.current(null)
+
+    if (activePointerId !== undefined) {
+      try {
+        gl.domElement.releasePointerCapture(activePointerId)
+      } catch {
+        // Pointer capture may already be released.
+      }
+    }
   }
 
   function completeDrag() {
     const dragState = dragStateRef.current
 
-    if (!dragState) {
-      return
-    }
+    if (dragState) {
+      const card = cardsRef.current.find((candidateCard) => candidateCard.id === dragState.cardId)
 
-    const card = cardsRef.current.find((candidateCard) => candidateCard.id === dragState.cardId)
-
-    if (dragState.moved) {
-      onDragEndRef.current(dragState.cardId)
-    } else if (card) {
-      onCardClickRef.current(card)
+      if (dragState.moved) {
+        onDragEndRef.current(dragState.cardId, isDraggingOverHandAreaRef.current)
+      } else if (card) {
+        onCardClickRef.current(card)
+      }
     }
 
     cancelDrag()
@@ -130,6 +149,7 @@ export function useHandCardDrag({
 
     if (!dragState.moved && Math.hypot(deltaX, deltaY) >= DRAG_CLICK_DISTANCE) {
       dragState.moved = true
+      draggingCardIdRef.current = dragState.cardId
       setDraggingCardId(dragState.cardId)
       onDragChangeRef.current(dragState.cardId)
     }
@@ -200,10 +220,18 @@ export function useHandCardDrag({
     return dragState
   }
 
-  function startDrag(card: CardType, startPosition: [number, number, number], clientX: number, clientY: number) {
+  function startDrag(
+    card: CardType,
+    startPosition: [number, number, number],
+    clientX: number,
+    clientY: number,
+    pointerId: number,
+  ) {
     if (!enabled) {
       return
     }
+
+    cancelDrag()
 
     const bounds = gl.domElement.getBoundingClientRect()
     const handStartPosition = new Vector3(...startPosition)
@@ -218,6 +246,7 @@ export function useHandCardDrag({
 
     dragStateRef.current = {
       cardId: card.id,
+      pointerId,
       startX: clientX,
       startY: clientY,
       handStartPosition,
@@ -230,6 +259,12 @@ export function useHandCardDrag({
     }
     updateDragVisualPosition(startPosition)
     updateIsDraggingOverHandArea(true)
+
+    try {
+      gl.domElement.setPointerCapture(pointerId)
+    } catch {
+      // Pointer capture can fail if the pointer is no longer active.
+    }
   }
 
   function handlePointerMove(clientX: number, clientY: number) {
@@ -274,11 +309,11 @@ export function useHandCardDrag({
   }, [cards])
 
   useEffect(() => {
-    if (!draggingCardId) {
+    if (!draggingCardIdRef.current) {
       return
     }
 
-    if (hiddenCardIds.has(draggingCardId) || puttingDownCardIds.has(draggingCardId)) {
+    if (hiddenCardIds.has(draggingCardIdRef.current) || puttingDownCardIds.has(draggingCardIdRef.current)) {
       cancelDrag()
     }
   }, [draggingCardId, hiddenCardIds, puttingDownCardIds])
@@ -292,18 +327,26 @@ export function useHandCardDrag({
       completeDrag()
     }
 
+    const canvas = gl.domElement
+
     window.addEventListener('pointermove', handleWindowPointerMove)
     window.addEventListener('pointerup', handleWindowPointerEnd)
     window.addEventListener('pointercancel', handleWindowPointerEnd)
     window.addEventListener('blur', handleWindowPointerEnd)
+    canvas.addEventListener('pointerup', handleWindowPointerEnd)
+    canvas.addEventListener('pointercancel', handleWindowPointerEnd)
+    canvas.addEventListener('lostpointercapture', handleWindowPointerEnd)
 
     return () => {
       window.removeEventListener('pointermove', handleWindowPointerMove)
       window.removeEventListener('pointerup', handleWindowPointerEnd)
       window.removeEventListener('pointercancel', handleWindowPointerEnd)
       window.removeEventListener('blur', handleWindowPointerEnd)
+      canvas.removeEventListener('pointerup', handleWindowPointerEnd)
+      canvas.removeEventListener('pointercancel', handleWindowPointerEnd)
+      canvas.removeEventListener('lostpointercapture', handleWindowPointerEnd)
     }
-  }, [])
+  }, [gl])
 
   useEffect(() => {
     return () => {
@@ -318,6 +361,7 @@ export function useHandCardDrag({
     startDrag,
     handlePointerMove,
     handlePointerOverReorder,
+    completeDrag,
     cancelDrag,
   }
 }

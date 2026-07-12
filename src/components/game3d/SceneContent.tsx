@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MathUtils, type Group } from 'three'
-import { getHandCardsTableTargets, handCardHasTableTargets } from '../../game/tableTargets'
+import { getHandCardsTableTargets } from '../../game/tableTargets'
 import CameraRig from './CameraRig'
 import { DeckDrawArrow, DeckPile } from './DeckPile'
 import DiscardPile from './DiscardPile'
@@ -52,18 +52,6 @@ export default function SceneContent(props: SceneContentProps) {
     [interactionHandCards, melds, props.canDiscard, viewerPlayerId],
   )
 
-  const activeHandCardIds = useMemo(() => {
-    if (draggedHandCardId) {
-      return new Set([draggedHandCardId])
-    }
-
-    if (!handCardHasTableTargets(interactionTableTargets)) {
-      return new Set<string>()
-    }
-
-    return new Set(selectedHandCards.map((card) => card.id))
-  }, [draggedHandCardId, interactionTableTargets, selectedHandCards])
-
   const isHandCardDragging = draggedHandCardId !== null
 
   function clearTableDropTarget() {
@@ -78,13 +66,19 @@ export default function SceneContent(props: SceneContentProps) {
     }
   }
 
-  function handleHandCardDragEnd(cardId: string) {
+  function handleDragHandAreaChange(isOverHand: boolean) {
+    if (isOverHand) {
+      clearTableDropTarget()
+    }
+  }
+
+  function handleHandCardDragEnd(cardId: string, isOverHand: boolean) {
     const dropTarget = tableDropTargetRef.current
 
-    setDraggedHandCardId(null)
     clearTableDropTarget()
+    setDraggedHandCardId(null)
 
-    if (!props.canDiscard) {
+    if (!props.canDiscard || isOverHand || !dropTarget) {
       return
     }
 
@@ -213,12 +207,12 @@ export default function SceneContent(props: SceneContentProps) {
         isGatheringForSort={props.isHandGatheringForSort}
         isCloseUp={props.isLocalHandFocused}
         handHoverCameraFocusEnabled={props.handHoverCameraFocusEnabled}
-        activeHandCardIds={activeHandCardIds}
         onHandAreaFocusChange={props.onLocalHandFocusChange}
         onHandCardClick={props.onHandCardClick}
         onHandCardReorder={props.onHandCardReorder}
         onHandCardDragChange={handleHandCardDragChange}
         onHandCardDragEnd={handleHandCardDragEnd}
+        onHandCardDragHandAreaChange={handleDragHandAreaChange}
         onHandCardHover={props.onHandCardHover}
       />
       <PuttingDownCards cards={props.puttingDownCards} />
