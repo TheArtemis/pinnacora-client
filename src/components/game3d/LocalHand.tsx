@@ -5,6 +5,7 @@ import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { deckPosition, localHandBaseZ, tableCardBaseY } from './constants'
 import { cardFanOffset } from './layout'
+import DevOutline from './DevOutline'
 import type { GameTableSceneProps } from './types'
 
 const LOCAL_HAND_CARD_SPACING = 1.08
@@ -478,6 +479,13 @@ export default function LocalHand({
 
   return (
     <group>
+      <DevOutline
+        width={LOCAL_HAND_MAX_WIDTH}
+        height={CARD_HEIGHT}
+        position={[0, 2.05, localHandBaseZ + (isCloseUp ? LOCAL_HAND_CLOSEUP_Z_OFFSET : 0)]}
+        rotation={handHoverCameraFocusEnabled ? [-0.72, 0, 0] : [-Math.PI / 2, 0, 0]}
+        color="#06b6d4"
+      />
       {cards.map((card, index) => {
         const x = cardFanOffset(index, cards.length, LOCAL_HAND_CARD_SPACING, LOCAL_HAND_MAX_WIDTH)
         const resolvedSpacing =

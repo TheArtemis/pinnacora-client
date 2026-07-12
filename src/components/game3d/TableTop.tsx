@@ -1,4 +1,5 @@
 import { TABLE } from './constants'
+import DevOutline from './DevOutline'
 
 export default function TableTop() {
   const outerHalfWidth = TABLE.outerWidth / 2
@@ -51,6 +52,21 @@ export default function TableTop() {
         <boxGeometry args={[0.08, 0.035, TABLE.playingDepth + 0.3]} />
         <meshStandardMaterial color="#64748b" roughness={0.48} metalness={0.06} />
       </mesh>
+
+      <DevOutline
+        width={TABLE.outerWidth}
+        height={0.36}
+        depth={TABLE.outerDepth}
+        position={[0, -0.18, 0]}
+        color="#3b82f6"
+      />
+      <DevOutline
+        width={TABLE.playingWidth}
+        height={0.08}
+        depth={TABLE.playingDepth}
+        position={[0, 0.04, 0]}
+        color="#22c55e"
+      />
     </group>
   )
 }

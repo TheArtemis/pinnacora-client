@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { localHandBaseZ, tableCardBaseY } from './constants'
+import DevOutline from './DevOutline'
 import type { GameTableSceneProps } from './types'
 
 const DISCARD_AREA_WIDTH = 8.8
@@ -66,6 +67,13 @@ export default function DiscardPile({
         <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
         <meshStandardMaterial color={canDropDraggedCard ? '#2563eb' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.28 : canDiscard ? 0.2 : 0.1} />
       </mesh>
+      <DevOutline
+        width={DISCARD_AREA_WIDTH}
+        height={DISCARD_AREA_DEPTH}
+        position={[DISCARD_AREA_X, tableCardBaseY, DISCARD_AREA_Z]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        color="#ec4899"
+      />
       {cards.map((card, index) => {
         const selected = discardPileHighlightStartIndex !== null && index >= discardPileHighlightStartIndex
         const offset = index

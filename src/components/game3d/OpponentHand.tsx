@@ -1,6 +1,7 @@
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { cardTopFanYOffset, handFanLayout, localPlayerId } from './layout'
+import DevOutline from './DevOutline'
 
 const OPPONENT_HAND_TOP_ARC_RADIUS = 3.8
 
@@ -20,6 +21,13 @@ export default function OpponentHand({ state, hoveredCardIndexes }: OpponentHand
 
   return (
     <group>
+      <DevOutline
+        width={14}
+        height={CARD_HEIGHT}
+        position={[0, 1.8, -9.35]}
+        rotation={[-0.24, 0, 0]}
+        color="#f43f5e"
+      />
       {Array.from({ length: opponent.handCount }).map((_, index) => {
         const { fanAngle, normalizedIndex, x, y, z } = handFanLayout(index, opponent.handCount, {
           radius: 6.9,

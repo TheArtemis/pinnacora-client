@@ -10,6 +10,8 @@ import MeldCards from './MeldCards'
 import OpponentHand from './OpponentHand'
 import PuttingDownCards from './PuttingDownCards'
 import TableTop from './TableTop'
+import DevOutline from './DevOutline'
+import { TABLE, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
 import type { SceneContentProps } from './types'
 
@@ -189,6 +191,13 @@ export default function SceneContent(props: SceneContentProps) {
       <directionalLight position={[1.8, 5.2, 4.4]} intensity={1.8} />
       <TableTop />
       <group ref={tableCardsRef}>
+        <DevOutline
+          width={TABLE.playingWidth}
+          height={0.5}
+          depth={TABLE.playingDepth}
+          position={[0, tableCardBaseY, 0]}
+          color="#f97316"
+        />
         <DeckPile
           deckCount={props.state?.deckCount ?? 0}
           canDraw={props.canDraw}

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
+import DevStatePanel from '../components/dev/DevStatePanel'
 import GameTableScene from '../components/game3d'
+import { devMode } from '../config/dev'
 import type { Card as CardType } from '../game/cardTypes'
 import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
 import {
@@ -19,6 +21,7 @@ import {
 } from '../game/optimisticActions'
 import { calculateMeldPoints, getMeldPoints } from '../game/scoring'
 import type { ServerGameState } from '../game/serverTypes'
+import type { DevStatePatch } from '../game/devState'
 import { connectSocket, socket } from '../socket'
 import { useAuth } from '../auth/useAuth'
 
@@ -144,6 +147,10 @@ export default function Game() {
   const confirmedServerStateRef = useRef<ServerGameState | null>(null)
   const pendingOptimisticActionsRef = useRef<OptimisticGameAction[]>([])
   const [pendingOptimisticActions, setPendingOptimisticActions] = useState<OptimisticGameAction[]>([])
+  const [devPanelError, setDevPanelError] = useState('')
+  const [isApplyingDevState, setIsApplyingDevState] = useState(false)
+  const [devPanelResetKey, setDevPanelResetKey] = useState(0)
+  const isApplyingDevStateRef = useRef(false)
 
   const currentPlayer = useMemo(
     () => serverState?.players.find((player) => player.id === serverState.youPlayerId),
@@ -455,6 +462,12 @@ export default function Game() {
       setHoveredDiscardPileStartIndex(null)
       setOpponentHandHover(null)
       setGameError('')
+      if (isApplyingDevStateRef.current) {
+        isApplyingDevStateRef.current = false
+        setIsApplyingDevState(false)
+        setDevPanelError('')
+        setDevPanelResetKey((current) => current + 1)
+      }
     }
 
     function handleGameError(nextError: { error?: string; clientActionId?: unknown }) {
@@ -465,6 +478,13 @@ export default function Game() {
 
       setPendingActions(nextPending)
       setPuttingDownCards([])
+      if (isApplyingDevStateRef.current) {
+        isApplyingDevStateRef.current = false
+        setIsApplyingDevState(false)
+        setDevPanelError(nextError.error ?? 'Could not apply dev state.')
+        return
+      }
+
       setGameError(nextError.error ?? 'Could not complete game action')
       activeSocket.emit('join_game', tournamentId ? { gameId, tournamentId } : gameId)
     }
@@ -900,6 +920,25 @@ export default function Game() {
     window.setTimeout(() => setCopiedGameLink(false), 1800)
   }
 
+  function handleApplyDevState(patch: DevStatePatch) {
+    if (!devMode) {
+      return
+    }
+
+    setDevPanelError('')
+    setPendingActions([])
+    setPuttingDownCards([])
+    isApplyingDevStateRef.current = true
+    setIsApplyingDevState(true)
+    socket.emit('dev_set_state', patch)
+  }
+
+  function handleSyncDevPanel() {
+    setDevPanelError('')
+    setDevPanelResetKey((current) => current + 1)
+    socket.emit('join_game', tournamentId ? { gameId, tournamentId } : gameId)
+  }
+
   return (
     <main className="page-shell game-page">
       <header className="game-header">
@@ -997,6 +1036,16 @@ export default function Game() {
       </section>
       {gameError ? <p className="form-error">{gameError}</p> : null}
       {finishError ? <p className="form-error">{finishError}</p> : null}
+      {devMode ? (
+        <DevStatePanel
+          state={serverState}
+          resetKey={devPanelResetKey}
+          onApply={handleApplyDevState}
+          onSync={handleSyncDevPanel}
+          applying={isApplyingDevState}
+          error={devPanelError}
+        />
+      ) : null}
     </main>
   )
 }

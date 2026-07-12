@@ -4,6 +4,7 @@ import { DoubleSide, MathUtils, MeshBasicMaterial, MeshStandardMaterial, PlaneGe
 import { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { deckPosition, tableCardBaseY } from './constants'
 import { getCardBackTexture } from './cardTextures'
+import DevOutline from './DevOutline'
 
 const cardBackGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
 const deckHitGeometry = new PlaneGeometry(CARD_WIDTH, CARD_HEIGHT)
@@ -62,10 +63,19 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
 
   if (deckCount === 0) {
     return (
-      <mesh position={[deckPosition.x, tableCardBaseY - 0.015, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
-        <meshStandardMaterial color="#2563eb" transparent opacity={0.14} />
-      </mesh>
+      <group>
+        <mesh position={[deckPosition.x, tableCardBaseY - 0.015, deckPosition.z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT]} />
+          <meshStandardMaterial color="#2563eb" transparent opacity={0.14} />
+        </mesh>
+        <DevOutline
+          width={CARD_WIDTH}
+          height={CARD_HEIGHT}
+          position={[deckPosition.x, tableCardBaseY, deckPosition.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          color="#a855f7"
+        />
+      </group>
     )
   }
 
@@ -87,6 +97,13 @@ export function DeckPile({ deckCount, canDraw, onDrawCard }: DeckPileProps) {
         position={[deckPosition.x, tableCardBaseY + visibleCards * 0.024 + 0.04, deckPosition.z]}
         rotation={[-Math.PI / 2, 0, 0.04]}
         onClick={handleDeckClick}
+      />
+      <DevOutline
+        width={CARD_WIDTH}
+        height={CARD_HEIGHT}
+        position={[deckPosition.x, tableCardBaseY + visibleCards * 0.012, deckPosition.z]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        color="#a855f7"
       />
     </group>
   )
@@ -110,6 +127,7 @@ export function DeckDrawArrow({ visible }: { visible: boolean }) {
 
   return (
     <group position={[deckPosition.x, 0, deckPosition.z - 0.08]}>
+      <DevOutline width={1.2} height={2.2} depth={0.8} position={[0, 0.9, 0]} color="#eab308" />
       <mesh ref={arrowRef} position={[0, 1.44, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.28, 0.68, 32]} />
         <meshStandardMaterial color="#eab308" emissive="#ca8a04" emissiveIntensity={0.24} roughness={0.42} />

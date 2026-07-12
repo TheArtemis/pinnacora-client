@@ -3,6 +3,7 @@ import { getMeldPoints } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
 import { emptyMelds, localHandBaseZ, localMeldInteractionY, MELD_LAYOUT, tableCardBaseY } from './constants'
+import DevOutline from './DevOutline'
 import { localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
 import PointsBurst from './PointsBurst'
 
@@ -198,6 +199,17 @@ export default function MeldCards({
 
         return (
           <group key={meld.id}>
+            <DevOutline
+              width={CARD_HEIGHT * 0.72}
+              height={Math.max(CARD_HEIGHT * 0.72, (visibleSlotCount - 1) * cardSpacing + CARD_HEIGHT * 0.72)}
+              position={[
+                startX,
+                tableCardBaseY,
+                startZ + ((visibleSlotCount - 1) * cardSpacing * zDirection) / 2,
+              ]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              color="#8b5cf6"
+            />
             {visibleCards.map(({ card, originalIndex }, visibleCardIndex) => {
               const meldCardId = `${meld.id}-${card.id}`
               const swappableMeldJokerId = `${meld.id}:${card.id}`

@@ -3,6 +3,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
 import { getCardBackTexture, getCardFaceTexture } from './cardTextures'
+import DevOutline from './DevOutline'
 
 export const CARD_WIDTH = 1.84
 export const CARD_HEIGHT = 2.64
@@ -298,6 +299,7 @@ const CardMesh = memo(function CardMesh({
           >
           </mesh>
         ) : null}
+        <DevOutline width={CARD_WIDTH} height={CARD_HEIGHT} position={[0, 0, 0.03]} />
       </group>
     </group>
   )

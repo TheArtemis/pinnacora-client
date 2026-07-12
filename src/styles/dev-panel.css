@@ -1,0 +1,344 @@
+.dev-panel {
+  position: fixed;
+  top: 5.5rem;
+  right: 1rem;
+  z-index: 30;
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 5.5rem);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #fdba74;
+  border-radius: 0.9rem;
+  background: rgba(255, 251, 235, 0.97);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  color: #0f172a;
+  backdrop-filter: blur(10px);
+}
+
+.dev-panel--open {
+  height: min(44rem, calc(100vh - 5.5rem));
+}
+
+.dev-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #fed7aa;
+  flex-shrink: 0;
+}
+
+.dev-panel__header strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.dev-panel__meta {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.dev-panel__toggle,
+.dev-panel__remove {
+  border: 0;
+  background: transparent;
+  color: #9a3412;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dev-panel__toggle {
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: #ffedd5;
+  font-size: 0.78rem;
+}
+
+.dev-panel__body {
+  display: grid;
+  grid-template-rows: minmax(16rem, 1fr) auto auto;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dev-panel__scroll {
+  overflow: auto;
+  min-height: 0;
+  padding: 0.85rem 1rem 0.5rem;
+}
+
+.dev-panel__section+.dev-panel__section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #fde68a;
+}
+
+.dev-panel__section h3 {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.dev-panel__section--pool {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 0.85rem 1rem 0.5rem;
+  border-top: 2px solid #fdba74;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.dev-panel__section-header,
+.dev-panel__meld-header,
+.dev-panel__footer,
+.dev-panel__inline-actions,
+.dev-panel__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.dev-panel__section-header,
+.dev-panel__meld-header {
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.dev-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.dev-panel__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.dev-panel__grid select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff;
+  font: inherit;
+}
+
+.dev-panel__quick-actions {
+  margin-top: 0.55rem;
+}
+
+.dev-panel__hint,
+.dev-panel__empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.dev-panel__card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.dev-panel__card-item {
+  position: relative;
+}
+
+.dev-panel__card-item .dev-panel__remove {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+  padding: 0;
+  border-radius: 50%;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.dev-panel__card-item .dev-panel__remove:hover {
+  background: #ffedd5;
+  border-color: #ea580c;
+  color: #9a3412;
+}
+
+.dev-panel__meld {
+  padding: 0.55rem;
+  border: 1px dashed #fdba74;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.dev-panel__meld+.dev-panel__meld {
+  margin-top: 0.55rem;
+}
+
+.dev-panel__pool-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.dev-panel__pool-filter {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.dev-panel__pool-filter:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.dev-panel__pool-filter--tone-red {
+  color: #dc2626;
+}
+
+.dev-panel__pool-filter--tone-black {
+  color: #0f172a;
+}
+
+.dev-panel__pool-filter--active {
+  border-color: #ea580c;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.dev-panel__pool-filter--active:hover {
+  background: #fed7aa;
+  color: #7c2d12;
+}
+
+.dev-panel__pool-filter--active.dev-panel__pool-filter--tone-red,
+.dev-panel__pool-filter--active.dev-panel__pool-filter--tone-black {
+  color: #9a3412;
+}
+
+.dev-panel__pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 10rem;
+  overflow: auto;
+  margin-top: 0.65rem;
+  padding: 0.15rem 0.1rem 0.35rem;
+}
+
+.dev-panel__pool-card {
+  flex: 0 0 auto;
+}
+
+.dev-panel__pool-card .playing-card {
+  width: 3.5rem;
+  height: 5rem;
+  min-height: 5rem;
+  border-radius: 0.55rem;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.dev-panel__pool-card .playing-card.playing-card--red {
+  color: #dc2626;
+}
+
+.dev-panel__pool-card .playing-card-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #0f172a;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
+}
+
+.dev-panel__pool-card .playing-card-button.playing-card--red:hover:not(:disabled) {
+  color: #dc2626;
+}
+
+.dev-panel__pool-card .playing-card--selected {
+  transform: translateY(-3px);
+  border-color: #ea580c;
+  outline: 2px solid #fed7aa;
+  outline-offset: 1px;
+  background: #fff7ed;
+  color: #0f172a;
+  box-shadow:
+    0 0 0 3px #ffedd5,
+    0 8px 16px rgba(234, 88, 12, 0.18);
+}
+
+.dev-panel__pool-card .playing-card--selected.playing-card--red {
+  color: #dc2626;
+}
+
+.dev-panel__pool-card .playing-card__rank {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dev-panel__pool-card .playing-card__suit {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.dev-panel__footer {
+  justify-content: space-between;
+  margin-top: 0;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid #fde68a;
+  flex-shrink: 0;
+}
+
+.dev-panel .dev-panel__card-list .playing-card {
+  width: 2.5rem;
+  min-height: 3.4rem;
+  font-size: 0.72rem;
+}
+
+.dev-panel .form-error {
+  margin: 0 1rem 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .dev-panel {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    max-height: calc(100vh - 1.5rem);
+  }
+
+  .dev-panel--open {
+    height: min(80vh, calc(100vh - 1.5rem));
+  }
+
+  .dev-panel__body {
+    grid-template-rows: minmax(12rem, 1fr) auto auto;
+  }
+
+  .dev-panel__pool {
+    max-height: 8rem;
+  }
+}
