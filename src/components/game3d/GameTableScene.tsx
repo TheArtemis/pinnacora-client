@@ -14,11 +14,12 @@ export default function GameTableScene(props: GameTableSceneProps) {
   const [isLowerCanvasFocused, setIsLowerCanvasFocused] = useState(false)
   const [isHandAreaFocused, setIsHandAreaFocused] = useState(false)
   const [isTableZoomEnabled, setIsTableZoomEnabled] = useState(false)
+  const [tablePressZoomPoint, setTablePressZoomPoint] = useState<{ x: number; z: number } | null>(null)
   const isLowerCanvasFocusedRef = useRef(false)
   const isHandAreaFocusedRef = useRef(false)
   const isLocalHandFocused =
     props.handHoverCameraFocusEnabled && (isLowerCanvasFocused || isHandAreaFocused)
-  const isMiddleTableFocused = isTableZoomEnabled && !isLocalHandFocused
+  const isMiddleTableFocused = (isTableZoomEnabled || tablePressZoomPoint !== null) && !isLocalHandFocused
   const isSceneCloseUp = isLocalHandFocused || isMiddleTableFocused
 
   useEffect(() => {
@@ -87,6 +88,8 @@ export default function GameTableScene(props: GameTableSceneProps) {
           {...props}
           isLocalHandFocused={isLocalHandFocused}
           isMiddleTableFocused={isMiddleTableFocused}
+          tablePressZoomPoint={tablePressZoomPoint}
+          onTablePressZoomChange={setTablePressZoomPoint}
           onLocalHandFocusChange={handleLocalHandFocusChange}
         />
       </Canvas>

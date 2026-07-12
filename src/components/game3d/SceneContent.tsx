@@ -10,6 +10,7 @@ import MeldCards from './MeldCards'
 import OpponentHand from './OpponentHand'
 import PuttingDownCards from './PuttingDownCards'
 import TableTop from './TableTop'
+import TablePressZoomSurface from './TablePressZoomSurface'
 import DevOutline from './DevOutline'
 import { TABLE, TABLE_CAMERA_FOCUS, tableCardBaseY } from './constants'
 import { localPlayerId } from './layout'
@@ -53,6 +54,10 @@ export default function SceneContent(props: SceneContentProps) {
   )
 
   const isHandCardDragging = draggedHandCardId !== null
+  const isTablePressZoomEnabled =
+    props.selectedCardIds.size === 0 &&
+    !isHandCardDragging &&
+    props.discardPileHighlightStartIndex === null
 
   function clearTableDropTarget() {
     tableDropTargetRef.current = null
@@ -60,6 +65,10 @@ export default function SceneContent(props: SceneContentProps) {
 
   function handleHandCardDragChange(cardId: string | null) {
     setDraggedHandCardId(cardId)
+
+    if (cardId) {
+      props.onTablePressZoomChange(null)
+    }
 
     if (!cardId) {
       clearTableDropTarget()
@@ -120,11 +129,19 @@ export default function SceneContent(props: SceneContentProps) {
 
   return (
     <>
-      <CameraRig focusLocalHand={props.isLocalHandFocused} focusMiddleTable={props.isMiddleTableFocused} />
+      <CameraRig
+        focusLocalHand={props.isLocalHandFocused}
+        focusMiddleTable={props.isMiddleTableFocused}
+        tableFocusPoint={props.tablePressZoomPoint}
+      />
       <color attach="background" args={['#eef2f4']} />
       <ambientLight intensity={0.72} />
       <directionalLight position={[1.8, 5.2, 4.4]} intensity={1.8} />
       <TableTop />
+      <TablePressZoomSurface
+        enabled={isTablePressZoomEnabled}
+        onPressZoomChange={props.onTablePressZoomChange}
+      />
       <group ref={tableCardsRef}>
         <DevOutline
           width={TABLE.playingWidth}

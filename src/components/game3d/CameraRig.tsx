@@ -1,14 +1,20 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { MathUtils, Vector3 } from 'three'
-import { localHandBaseZ, TABLE_CAMERA_FOCUS } from './constants'
+import { localHandBaseZ, TABLE_CAMERA_FOCUS, TABLE_PRESS_ZOOM } from './constants'
+
+type TableFocusPoint = {
+  x: number
+  z: number
+}
 
 type CameraRigProps = {
   focusLocalHand: boolean
   focusMiddleTable: boolean
+  tableFocusPoint?: TableFocusPoint | null
 }
 
-export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRigProps) {
+export default function CameraRig({ focusLocalHand, focusMiddleTable, tableFocusPoint }: CameraRigProps) {
   const { camera, size } = useThree()
   const cameraRef = useRef(camera)
   const lookAtTargetRef = useRef(new Vector3(0, 0, 0))
@@ -25,27 +31,40 @@ export default function CameraRig({ focusLocalHand, focusMiddleTable }: CameraRi
   useFrame((_, delta) => {
     const aspectRatio = size.width / Math.max(size.height, 1)
     const isTallView = aspectRatio < 0.9
-    const targetCameraX = 0
+    const isTablePressZoom = focusMiddleTable && tableFocusPoint != null
+    const targetCameraX = isTablePressZoom ? tableFocusPoint.x : 0
     const targetCameraY = focusLocalHand
       ? 7.4
       : focusMiddleTable
-        ? (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.y : TABLE_CAMERA_FOCUS.camera.wide.y)
+        ? isTablePressZoom
+          ? (isTallView ? TABLE_PRESS_ZOOM.camera.tall.y : TABLE_PRESS_ZOOM.camera.wide.y)
+          : (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.y : TABLE_CAMERA_FOCUS.camera.wide.y)
         : isTallView
           ? 24
           : 21.5
     const targetCameraZ = focusLocalHand
       ? 14.2
       : focusMiddleTable
-        ? (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.z : TABLE_CAMERA_FOCUS.camera.wide.z)
+        ? isTablePressZoom
+          ? tableFocusPoint.z + (isTallView ? TABLE_PRESS_ZOOM.camera.tall.zOffset : TABLE_PRESS_ZOOM.camera.wide.zOffset)
+          : (isTallView ? TABLE_CAMERA_FOCUS.camera.tall.z : TABLE_CAMERA_FOCUS.camera.wide.z)
         : isTallView
           ? 11
           : 10
-    const targetLookX = focusLocalHand ? 0 : focusMiddleTable ? TABLE_CAMERA_FOCUS.lookAt.x : 0
-    const targetLookY = focusLocalHand ? 1.35 : focusMiddleTable ? TABLE_CAMERA_FOCUS.lookAt.y : 0
+    const targetLookX = focusLocalHand
+      ? 0
+      : focusMiddleTable
+        ? (tableFocusPoint?.x ?? TABLE_CAMERA_FOCUS.lookAt.x)
+        : 0
+    const targetLookY = focusLocalHand
+      ? 1.35
+      : focusMiddleTable
+        ? (isTablePressZoom ? TABLE_PRESS_ZOOM.lookAt.y : TABLE_CAMERA_FOCUS.lookAt.y)
+        : 0
     const targetLookZ = focusLocalHand
       ? localHandBaseZ - 0.5
       : focusMiddleTable
-        ? TABLE_CAMERA_FOCUS.lookAt.z
+        ? (tableFocusPoint?.z ?? TABLE_CAMERA_FOCUS.lookAt.z)
         : 0
     const activeCamera = cameraRef.current
 

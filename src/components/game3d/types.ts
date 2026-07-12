@@ -42,8 +42,15 @@ export type GameTableSceneProps = {
   onPutDownMeld: () => void
 }
 
+export type TablePressZoomPoint = {
+  x: number
+  z: number
+}
+
 export type SceneContentProps = GameTableSceneProps & {
   isLocalHandFocused: boolean
   isMiddleTableFocused: boolean
+  tablePressZoomPoint: TablePressZoomPoint | null
+  onTablePressZoomChange: (point: TablePressZoomPoint | null) => void
   onLocalHandFocusChange: (isFocused: boolean) => void
 }

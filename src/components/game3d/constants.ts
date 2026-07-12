@@ -48,6 +48,18 @@ export const TABLE_CAMERA_FOCUS = {
   },
 } as const
 
+export const TABLE_PRESS_ZOOM = {
+  holdDurationMs: 350,
+  moveThreshold: 6,
+  camera: {
+    wide: { y: 11.8, zOffset: 4.2 },
+    tall: { y: 13.2, zOffset: 4.8 },
+  },
+  lookAt: {
+    y: 0.38,
+  },
+} as const
+
 export const localHandBaseZ = 9.75
 export const tableCardBaseY = 0.14
 /** Lift own meld cards to hand height so clicks reach them without disabling hand selection. */
