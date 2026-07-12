@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getMeldPoints } from '../../game/scoring'
+import { getMeldPoints, isCompleteMeld } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
 import { emptyMelds, localHandBaseZ, localMeldInteractionY, MELD_LAYOUT, tableCardBaseY } from './constants'
@@ -7,22 +7,6 @@ import DevOutline from './DevOutline'
 import { localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
 import PointsBurst from './PointsBurst'
 
-const rankOrder: Record<ServerGameState['melds'][number]['cards'][number]['rank'], number> = {
-  A: 1,
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
-  '10': 10,
-  J: 11,
-  Q: 12,
-  K: 13,
-  JOKER: 0,
-}
 const COMPLETED_MELD_SCALE = 0.72
 const LOCAL_MELD_JOKER_SWAP_Z_LIFT = 2.85
 
@@ -47,18 +31,8 @@ function isJoker(card: ServerGameState['melds'][number]['cards'][number]) {
   return card.rank === 'JOKER' || card.suit === 'joker'
 }
 
-function isCompleteMeld(meld: ServerGameState['melds'][number]) {
-  if (meld.type === 'set') {
-    return meld.cards.length >= 4
-  }
-
-  const naturalValues = new Set(
-    meld.cards
-      .filter((card) => !isJoker(card))
-      .map((card) => (card.rank === 'A' ? 1 : rankOrder[card.rank])),
-  )
-
-  return meld.cards.length >= 13 && naturalValues.size + meld.cards.filter(isJoker).length >= 13
+function isCompletedMeld(meld: ServerGameState['melds'][number]) {
+  return isCompleteMeld(meld.cards, meld.type)
 }
 
 export default function MeldCards({
@@ -146,14 +120,14 @@ export default function MeldCards({
   const ownerCompleteMeldCounts = new Map<string, number>()
 
   for (const meld of melds) {
-    const targetCounts = isCompleteMeld(meld) ? ownerCompleteMeldCounts : ownerMeldCounts
+    const targetCounts = isCompletedMeld(meld) ? ownerCompleteMeldCounts : ownerMeldCounts
     targetCounts.set(meld.playerId, (targetCounts.get(meld.playerId) ?? 0) + 1)
   }
 
   return (
     <group>
       {melds.map((meld) => {
-        const isComplete = isCompleteMeld(meld)
+        const isComplete = isCompletedMeld(meld)
         const ownerIndexes = isComplete ? ownerCompleteMeldIndexes : ownerMeldIndexes
         const ownerMeldIndex = ownerIndexes.get(meld.playerId) ?? 0
         ownerIndexes.set(meld.playerId, ownerMeldIndex + 1)

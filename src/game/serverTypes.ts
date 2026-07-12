@@ -19,6 +19,13 @@ export type ServerGameMeld = {
   points?: number
 }
 
+export type GameFinalScore = {
+  meldPoints: number
+  finishBonus: number
+  handPenalty: number
+  total: number
+}
+
 export type ServerGameState = {
   id: string
   status: ServerGameStatus
@@ -29,5 +36,7 @@ export type ServerGameState = {
   melds: ServerGameMeld[]
   currentPlayerId?: string
   youPlayerId?: string
+  finishingPlayerId?: string
+  finalScores?: Record<string, GameFinalScore>
   winnerId?: string
 }

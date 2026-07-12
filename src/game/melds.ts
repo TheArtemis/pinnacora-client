@@ -279,7 +279,9 @@ export function validateMeld(cards: Card[]) {
   const naturalCards = cards.filter((card) => !isJoker(card))
 
   if (naturalCards.length === 0) {
-    return 'Choose at least one non-joker card for the combination.'
+    return cards.every(isJoker) && cards.length <= 4
+      ? ''
+      : 'Choose at least one non-joker card for the combination.'
   }
 
   const uniqueRanks = new Set(naturalCards.map((card) => card.rank))
@@ -317,7 +319,7 @@ export function getMeldType(cards: Card[]): ServerGameMeld['type'] | undefined {
   const naturalCards = cards.filter((card) => !isJoker(card))
 
   if (naturalCards.length === 0) {
-    return undefined
+    return cards.every(isJoker) && cards.length <= 4 ? 'set' : undefined
   }
 
   const uniqueRanks = new Set(naturalCards.map((card) => card.rank))

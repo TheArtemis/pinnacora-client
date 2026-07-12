@@ -17,6 +17,8 @@ const ranks: Exclude<CardRank, 'JOKER'>[] = [
   'K',
 ]
 
+export const jokersPerDeck = 2
+
 export function createFullDeck(): Card[] {
   const cards: Card[] = []
 
@@ -31,11 +33,13 @@ export function createFullDeck(): Card[] {
       }
     }
 
-    cards.push({
-      id: `deck-${deckIndex}-JOKER`,
-      suit: 'joker',
-      rank: 'JOKER',
-    })
+    for (let jokerIndex = 1; jokerIndex <= jokersPerDeck; jokerIndex += 1) {
+      cards.push({
+        id: `deck-${deckIndex}-JOKER-${jokerIndex}`,
+        suit: 'joker',
+        rank: 'JOKER',
+      })
+    }
   }
 
   return cards

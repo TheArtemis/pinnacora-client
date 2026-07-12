@@ -72,6 +72,11 @@ function statusText(state: ServerGameState | null) {
   if (state.status === 'finished') {
     const winner = state.players.find((player) => player.id === state.winnerId)
     const winnerName = winner?.id === state.youPlayerId ? 'You' : winner?.name
+    const winnerScore = state.winnerId ? state.finalScores?.[state.winnerId]?.total : undefined
+
+    if (winnerName && winnerScore !== undefined) {
+      return `${winnerName} won with ${winnerScore} points.`
+    }
 
     return winnerName ? `${winnerName} won the game.` : 'Game finished.'
   }
@@ -115,6 +120,22 @@ function resolveHandOrder(currentOrderIds: string[], cards: CardType[], fallback
 
 function isJokerCard(card: CardType) {
   return card.rank === 'JOKER' || card.suit === 'joker'
+}
+
+function formatPlayerPoints(state: ServerGameState, playerId: string, meldPoints: number) {
+  const finalScore = state.finalScores?.[playerId]
+
+  if (state.status === 'finished' && finalScore) {
+    const breakdown = [
+      `${finalScore.meldPoints} table`,
+      finalScore.finishBonus > 0 ? `+${finalScore.finishBonus} finish` : null,
+      finalScore.handPenalty > 0 ? `-${finalScore.handPenalty} hand` : null,
+    ].filter(Boolean).join(' · ')
+
+    return `${finalScore.total} points (${breakdown})`
+  }
+
+  return `${meldPoints} points`
 }
 
 export default function Game() {
@@ -986,7 +1007,7 @@ export default function Game() {
                   <strong>{player.id === serverState.youPlayerId ? 'You' : player.name}</strong>
                   <small>{player.connected ? 'Connected' : 'Disconnected'}</small>
                 </div>
-                <span>{player.handCount} cards · {playerMeldPoints.get(player.id) ?? 0} points</span>
+                <span>{player.handCount} cards · {formatPlayerPoints(serverState, player.id, playerMeldPoints.get(player.id) ?? 0)}</span>
                 {player.id === serverState.currentPlayerId ? <span className="turn-pill">Turn</span> : null}
               </article>
             ))}

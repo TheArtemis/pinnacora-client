@@ -122,26 +122,10 @@ export function projectOptimisticAction(state: ServerGameState, action: Optimist
   }
 }
 
-function hasPinnacora(state: ServerGameState, playerId: string) {
-  return state.melds.some((meld) => (
-    meld.playerId === playerId &&
-    meld.type === 'sequence' &&
-    meld.cards.length >= 7
-  ))
-}
-
-function hasFullPoker(state: ServerGameState, playerId: string) {
-  return state.melds.some((meld) => (
-    meld.playerId === playerId &&
-    meld.type === 'set' &&
-    meld.cards.length >= 4
-  ))
-}
-
 function maybeFinishGame(state: ServerGameState, playerId: string): ServerGameState {
   const player = state.players.find((candidatePlayer) => candidatePlayer.id === playerId)
 
-  if (!player || player.handCount > 0 || !hasPinnacora(state, playerId) || !hasFullPoker(state, playerId)) {
+  if (!player || player.handCount > 0) {
     return state
   }
 
@@ -150,7 +134,7 @@ function maybeFinishGame(state: ServerGameState, playerId: string): ServerGameSt
     status: 'finished',
     phase: 'finished',
     currentPlayerId: undefined,
-    winnerId: playerId,
+    finishingPlayerId: playerId,
   }
 }
 
