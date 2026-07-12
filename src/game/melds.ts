@@ -1,3 +1,4 @@
+import { isJoker } from './cards'
 import type { Card, CardRank, CardSuit } from './cardTypes'
 import type { ServerGameMeld } from './serverTypes'
 
@@ -31,10 +32,6 @@ function sequenceValues(cards: Card[], aceHigh: boolean) {
     .filter((card) => !isJoker(card))
     .map((card) => sequenceCardValue(card, aceHigh))
     .sort((left, right) => left - right)
-}
-
-function isJoker(card: Card) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
 }
 
 function sequenceCardValue(card: Card, aceHigh: boolean) {

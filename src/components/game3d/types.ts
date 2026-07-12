@@ -1,7 +1,6 @@
 import type { Card as CardType } from '../../game/cardTypes'
+import type { HandSortMode } from '../../game/handOrder'
 import type { ServerGameState } from '../../game/serverTypes'
-
-export type HandSortMode = 'suit' | 'value'
 
 export type GameTableSceneProps = {
   state: ServerGameState | null

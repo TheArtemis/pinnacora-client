@@ -1,3 +1,4 @@
+import { isJoker } from './cards'
 import type { Card } from './cardTypes'
 import { canAddCardToMeld, canAttachCardsToOwnMeld, buildDiscardPilePickupMeld, getMeldType, isMeldInCardOrder, sortMeldCards } from './melds'
 import { calculateMeldPoints } from './scoring'
@@ -529,6 +530,3 @@ function isCurrentPlayerPhase(
   )
 }
 
-function isJoker(card: Card) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
-}

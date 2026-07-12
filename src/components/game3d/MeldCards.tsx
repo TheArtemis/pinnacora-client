@@ -26,9 +26,7 @@ type MeldCardsProps = {
   onDiscardPileJokerTargetClick: (meldId: string, jokerCardId: string) => void
 }
 
-function isJoker(card: ServerGameState['melds'][number]['cards'][number]) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
-}
+import { isJoker } from '../../game/cards'
 
 function isCompletedMeld(meld: ServerGameState['melds'][number]) {
   return isCompleteMeld(meld.cards, meld.type)
@@ -186,8 +184,8 @@ export default function MeldCards({
               const meldCardId = `${meld.id}-${card.id}`
               const swappableMeldJokerId = `${meld.id}:${card.id}`
               const shouldMaterialize = materializingMeldCardIds.has(meldCardId)
-              const isJoker = card.rank === 'JOKER' || card.suit === 'joker'
-              const isClickableJoker = canSwapJoker && isJoker
+              const isJokerCard = isJoker(card)
+              const isClickableJoker = canSwapJoker && isJokerCard
               const isSwappableJoker = swappableMeldJokerIds.has(swappableMeldJokerId)
               const isDiscardPileMeldTarget = discardPileMeldTargetIds.has(meld.id)
               const isDiscardPileJokerTarget = discardPileJokerTargetIds.has(swappableMeldJokerId)

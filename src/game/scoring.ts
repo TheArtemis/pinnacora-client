@@ -1,3 +1,4 @@
+import { isJoker } from './cards'
 import type { Card, CardRank } from './cardTypes'
 import type { GameFinalScore, ServerGameMeld } from './serverTypes'
 
@@ -18,10 +19,6 @@ const rankOrder: Record<CardRank, number> = {
   Q: 12,
   K: 13,
   JOKER: 0,
-}
-
-function isJoker(card: Card) {
-  return card.rank === 'JOKER' || card.suit === 'joker'
 }
 
 function sequenceValues(cards: Card[], aceHigh: boolean) {

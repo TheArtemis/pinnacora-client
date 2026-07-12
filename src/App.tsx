@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import RequireAuth from './auth/RequireAuth'
-import Game from './pages/Game'
+import Game from './pages/game/Game'
 import Login from './pages/Login'
 import Lobby from './pages/Lobby'
 import Register from './pages/Register'
