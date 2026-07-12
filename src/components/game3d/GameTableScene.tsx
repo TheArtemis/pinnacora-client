@@ -82,7 +82,7 @@ export default function GameTableScene(props: GameTableSceneProps) {
       onPointerMove={handleScenePointerMove}
       onPointerLeave={handleScenePointerLeave}
     >
-      <Canvas camera={cameraSettings} dpr={[1, 1.5]} gl={glSettings}>
+      <Canvas camera={cameraSettings} dpr={[1, 2]} gl={glSettings}>
         <SceneContent
           {...props}
           isLocalHandFocused={isLocalHandFocused}

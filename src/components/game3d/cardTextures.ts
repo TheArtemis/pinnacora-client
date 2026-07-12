@@ -1,7 +1,12 @@
-import { CanvasTexture, SRGBColorSpace } from 'three'
+import { CanvasTexture, LinearFilter, LinearMipmapLinearFilter, SRGBColorSpace } from 'three'
 import type { Card as CardType } from '../../game/cardTypes'
 
 const textureCache = new Map<string, CanvasTexture>()
+
+const CARD_TEXTURE_LOGICAL_WIDTH = 512
+const CARD_TEXTURE_LOGICAL_HEIGHT = 736
+const CARD_TEXTURE_RESOLUTION_SCALE = 3
+const CARD_TEXTURE_ANISOTROPY = 16
 
 const suitSymbols: Record<CardType['suit'], string> = {
   clubs: '♣',
@@ -33,8 +38,8 @@ function createTexture(cacheKey: string, draw: (context: CanvasRenderingContext2
   }
 
   const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 736
+  canvas.width = CARD_TEXTURE_LOGICAL_WIDTH * CARD_TEXTURE_RESOLUTION_SCALE
+  canvas.height = CARD_TEXTURE_LOGICAL_HEIGHT * CARD_TEXTURE_RESOLUTION_SCALE
 
   const context = canvas.getContext('2d')
 
@@ -42,11 +47,17 @@ function createTexture(cacheKey: string, draw: (context: CanvasRenderingContext2
     throw new Error('Could not create card texture context.')
   }
 
-  draw(context, canvas.width, canvas.height)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
+  context.scale(CARD_TEXTURE_RESOLUTION_SCALE, CARD_TEXTURE_RESOLUTION_SCALE)
+  draw(context, CARD_TEXTURE_LOGICAL_WIDTH, CARD_TEXTURE_LOGICAL_HEIGHT)
 
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
-  texture.anisotropy = 4
+  texture.generateMipmaps = true
+  texture.minFilter = LinearMipmapLinearFilter
+  texture.magFilter = LinearFilter
+  texture.anisotropy = CARD_TEXTURE_ANISOTROPY
   textureCache.set(cacheKey, texture)
 
   return texture
