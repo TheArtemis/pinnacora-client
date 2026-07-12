@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import RequireAuth from './auth/RequireAuth'
+import { useServerKeepalive } from './hooks/useServerKeepalive'
 import Game from './pages/game/Game'
 import Login from './pages/Login'
 import Lobby from './pages/Lobby'
@@ -9,6 +10,8 @@ import TournamentDetail from './pages/TournamentDetail'
 import Tournaments from './pages/Tournaments'
 
 function App() {
+  useServerKeepalive()
+
   return (
     <Routes>
       <Route
