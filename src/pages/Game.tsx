@@ -3,9 +3,10 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { finishTournamentGame } from '../api/client'
 import DevStatePanel from '../components/dev/DevStatePanel'
 import GameTableScene from '../components/game3d'
+import MeldOrderPicker from '../components/MeldOrderPicker'
 import { devMode } from '../config/dev'
 import type { Card as CardType } from '../game/cardTypes'
-import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
+import { buildDiscardPilePickupMeld, canAddCardToMeld, canAttachCardToOwnMeld, canReplaceMeldJoker, getMeldType, handCardsForDiscardPickup, hasAmbiguousMeldOrder, resolveDiscardPilePickupStartIndex, validateDiscardPilePickupMeld, validateMeld } from '../game/melds'
 import {
   createAttachToMeldAction,
   createDiscardCardAction,
@@ -154,6 +155,7 @@ export default function Game() {
   const [copiedGameLink, setCopiedGameLink] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [selectedMeldCardIds, setSelectedMeldCardIds] = useState<string[]>([])
+  const [meldOrderPickerCards, setMeldOrderPickerCards] = useState<CardType[] | null>(null)
   const [puttingDownCards, setPuttingDownCards] = useState<CardType[]>([])
   const [selectedDiscardPileStartIndex, setSelectedDiscardPileStartIndex] = useState<number | null>(null)
   const [hoveredDiscardPileStartIndex, setHoveredDiscardPileStartIndex] = useState<number | null>(null)
@@ -430,6 +432,12 @@ export default function Game() {
     ownMeldAttachTargetIds.size,
     swappableMeldJokerIds.size,
   ])
+
+  useEffect(() => {
+    if (!canPutDownMeld) {
+      setMeldOrderPickerCards(null)
+    }
+  }, [canPutDownMeld])
 
   function setPendingActions(actions: OptimisticGameAction[]) {
     pendingOptimisticActionsRef.current = actions
@@ -888,6 +896,28 @@ export default function Game() {
     }, 280)
   }
 
+  function executePutDownMeld(cardIds: string[]) {
+    const meldCards = cardIds
+      .map((cardId) => hand.find((card) => card.id === cardId))
+      .filter((card): card is CardType => Boolean(card))
+
+    setGameError('')
+    setPuttingDownCards(meldCards)
+    const action = createPutDownMeldAction(cardIds)
+    applyOptimisticAction(action)
+    setSelectedMeldCardIds([])
+
+    if (puttingDownAnimationTimeoutRef.current) {
+      window.clearTimeout(puttingDownAnimationTimeoutRef.current)
+    }
+
+    puttingDownAnimationTimeoutRef.current = window.setTimeout(() => {
+      setPuttingDownCards([])
+    }, 850)
+
+    socket.emit('put_down_meld', { clientActionId: action.id, cardIds })
+  }
+
   function handlePutDownMeld() {
     if (!canPutDownMeld) {
       return
@@ -900,21 +930,21 @@ export default function Game() {
       return
     }
 
-    setGameError('')
-    setPuttingDownCards(selectedMeldCards)
-    const action = createPutDownMeldAction(selectedMeldCardIds)
-    applyOptimisticAction(action)
-    setSelectedMeldCardIds([])
-
-    if (puttingDownAnimationTimeoutRef.current) {
-      window.clearTimeout(puttingDownAnimationTimeoutRef.current)
+    if (hasAmbiguousMeldOrder(selectedMeldCards)) {
+      setMeldOrderPickerCards(selectedMeldCards)
+      return
     }
 
-    puttingDownAnimationTimeoutRef.current = window.setTimeout(() => {
-      setPuttingDownCards([])
-    }, 850)
+    executePutDownMeld(selectedMeldCardIds)
+  }
 
-    socket.emit('put_down_meld', { clientActionId: action.id, cardIds: selectedMeldCardIds })
+  function handleConfirmMeldOrder(orderedCardIds: string[]) {
+    setMeldOrderPickerCards(null)
+    executePutDownMeld(orderedCardIds)
+  }
+
+  function handleCancelMeldOrder() {
+    setMeldOrderPickerCards(null)
   }
 
   async function handleFinishGame() {
@@ -1057,6 +1087,13 @@ export default function Game() {
       </section>
       {gameError ? <p className="form-error">{gameError}</p> : null}
       {finishError ? <p className="form-error">{finishError}</p> : null}
+      {meldOrderPickerCards ? (
+        <MeldOrderPicker
+          cards={meldOrderPickerCards}
+          onConfirm={handleConfirmMeldOrder}
+          onCancel={handleCancelMeldOrder}
+        />
+      ) : null}
       {devMode ? (
         <DevStatePanel
           state={serverState}

@@ -569,3 +569,73 @@
   gap: 8px;
   justify-content: center;
 }
+
+.meld-order-picker__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 42%);
+}
+
+.meld-order-picker {
+  display: grid;
+  gap: 18px;
+  width: min(720px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.meld-order-picker__header {
+  display: grid;
+  gap: 8px;
+}
+
+.meld-order-picker__header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.meld-order-picker__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  min-height: 140px;
+  border: 2px dashed var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  background: var(--panel-soft);
+}
+
+.meld-order-picker__cards .playing-card {
+  cursor: grab;
+}
+
+.meld-order-picker__cards .playing-card:active {
+  cursor: grabbing;
+}
+
+.meld-order-picker__status {
+  text-align: center;
+  font-weight: 700;
+}
+
+.meld-order-picker__status--valid {
+  color: var(--success);
+}
+
+.meld-order-picker__status--invalid {
+  color: var(--danger);
+}
+
+.meld-order-picker__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}

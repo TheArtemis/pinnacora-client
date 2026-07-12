@@ -347,6 +347,61 @@ export function sortMeldCards(cards: Card[], type: ServerGameMeld['type']) {
   return sortSequenceCards(cards)
 }
 
+function permuteCards(cards: Card[]): Card[][] {
+  if (cards.length <= 1) {
+    return [cards]
+  }
+
+  const results: Card[][] = []
+
+  for (let index = 0; index < cards.length; index += 1) {
+    const currentCard = cards[index]
+    const remainingCards = [...cards.slice(0, index), ...cards.slice(index + 1)]
+
+    for (const permutation of permuteCards(remainingCards)) {
+      results.push([currentCard, ...permutation])
+    }
+  }
+
+  return results
+}
+
+export function getValidMeldOrderings(cards: Card[]): Card[][] {
+  const meldType = getMeldType(cards)
+
+  if (!meldType) {
+    return []
+  }
+
+  if (meldType === 'set') {
+    return [sortMeldCards(cards, meldType)]
+  }
+
+  const seenOrderKeys = new Set<string>()
+  const validOrderings: Card[][] = []
+
+  for (const ordering of permuteCards(cards)) {
+    if (!isMeldInCardOrder(ordering, meldType)) {
+      continue
+    }
+
+    const orderKey = ordering.map((card) => card.id).join(',')
+
+    if (seenOrderKeys.has(orderKey)) {
+      continue
+    }
+
+    seenOrderKeys.add(orderKey)
+    validOrderings.push(ordering)
+  }
+
+  return validOrderings
+}
+
+export function hasAmbiguousMeldOrder(cards: Card[]): boolean {
+  return getValidMeldOrderings(cards).length > 1
+}
+
 export function isMeldInCardOrder(cards: Card[], type: ServerGameMeld['type']) {
   if (type === 'set') {
     return getMeldType(cards) === type

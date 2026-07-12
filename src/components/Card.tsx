@@ -9,6 +9,7 @@ type CardProps = {
   draggable?: boolean
   onClick?: () => void
   onDragEnd?: () => void
+  onDragOver?: DragEventHandler<HTMLElement>
   onDragStart?: DragEventHandler<HTMLElement>
   onMouseEnter?: () => void
 }
@@ -29,6 +30,7 @@ export default function Card({
   draggable = false,
   onClick,
   onDragEnd,
+  onDragOver,
   onDragStart,
   onMouseEnter,
 }: CardProps) {
@@ -64,6 +66,7 @@ export default function Card({
         draggable={canDrag}
         onClick={onClick}
         onDragEnd={onDragEnd}
+        onDragOver={onDragOver}
         onDragStart={canDrag ? onDragStart : undefined}
         onMouseEnter={onMouseEnter}
         disabled={disabled}
@@ -79,6 +82,7 @@ export default function Card({
       className={className}
       draggable={canDrag}
       onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
       onDragStart={canDrag ? onDragStart : undefined}
       onMouseEnter={onMouseEnter}
     >
