@@ -1,12 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
 import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
 import { localHandBaseZ, tableCardBaseY } from './constants'
 import DevOutline from './DevOutline'
+import { createRoundedRectGeometry, createRoundedRectInnerGeometry } from './roundedRectGeometry'
 import type { GameTableSceneProps } from './types'
 
 const DISCARD_AREA_WIDTH = 8.8
 const DISCARD_AREA_DEPTH = CARD_HEIGHT * 1.34
+const DISCARD_AREA_CORNER_RADIUS = 0.42
+const DISCARD_AREA_BORDER_WIDTH = 0.1
 const DISCARD_AREA_X = 0
 const DISCARD_AREA_Z = -0.62
 
@@ -42,6 +45,24 @@ export default function DiscardPile({
   const discardCardY = tableCardBaseY + 0.018
   const canDropDraggedCard = canDiscard && isHandCardDragging
   const firstCardX = DISCARD_AREA_X - (Math.max(cards.length - 1, 0) * cardSpread) / 2
+  const discardAreaFillGeometry = useMemo(
+    () => createRoundedRectInnerGeometry(
+      DISCARD_AREA_WIDTH,
+      DISCARD_AREA_DEPTH,
+      DISCARD_AREA_CORNER_RADIUS,
+      DISCARD_AREA_BORDER_WIDTH,
+    ),
+    [],
+  )
+  const discardAreaBorderGeometry = useMemo(
+    () => createRoundedRectGeometry(DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH, DISCARD_AREA_CORNER_RADIUS),
+    [],
+  )
+  const discardAreaHitGeometry = discardAreaBorderGeometry
+  const discardAreaFillColor = canDropDraggedCard ? '#dbeafe' : '#f8fafc'
+  const discardAreaFillOpacity = canDropDraggedCard ? 0.72 : canDiscard ? 0.34 : 0.2
+  const discardAreaBorderColor = canDropDraggedCard ? '#2563eb' : canDiscard ? '#64748b' : '#94a3b8'
+  const discardAreaBorderOpacity = canDropDraggedCard ? 0.95 : canDiscard ? 0.78 : 0.52
 
   useLayoutEffect(() => {
     const nextCardIds = new Set(cardMembershipKey ? cardMembershipKey.split('|') : [])
@@ -58,14 +79,23 @@ export default function DiscardPile({
   return (
     <group>
       <mesh
-        position={[DISCARD_AREA_X, tableCardBaseY - 0.015, DISCARD_AREA_Z]}
+        geometry={discardAreaBorderGeometry}
+        position={[DISCARD_AREA_X, tableCardBaseY - 0.016, DISCARD_AREA_Z]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={11}
+        raycast={() => null}
+      >
+        <meshStandardMaterial color={discardAreaBorderColor} transparent opacity={discardAreaBorderOpacity} />
+      </mesh>
+      <mesh
+        geometry={discardAreaFillGeometry}
+        position={[DISCARD_AREA_X, tableCardBaseY - 0.014, DISCARD_AREA_Z]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={canDiscard && !canDropDraggedCard ? onDiscardSelectedCard : undefined}
         onPointerOver={canDropDraggedCard ? () => onDiscardDropTargetChange(true) : undefined}
         onPointerOut={canDropDraggedCard ? () => onDiscardDropTargetChange(false) : undefined}
       >
-        <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
-        <meshStandardMaterial color={canDropDraggedCard ? '#2563eb' : '#ffffff'} transparent opacity={canDropDraggedCard ? 0.28 : canDiscard ? 0.2 : 0.1} />
+        <meshStandardMaterial color={discardAreaFillColor} transparent opacity={discardAreaFillOpacity} />
       </mesh>
       <DevOutline
         width={DISCARD_AREA_WIDTH}
@@ -107,13 +137,13 @@ export default function DiscardPile({
       })}
       {canDropDraggedCard ? (
         <mesh
+          geometry={discardAreaHitGeometry}
           position={[DISCARD_AREA_X, discardCardY + 0.12, DISCARD_AREA_Z]}
           rotation={[-Math.PI / 2, 0, 0]}
           onPointerOver={() => onDiscardDropTargetChange(true)}
           onPointerOut={() => onDiscardDropTargetChange(false)}
           renderOrder={180}
         >
-          <planeGeometry args={[DISCARD_AREA_WIDTH, DISCARD_AREA_DEPTH]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       ) : null}
