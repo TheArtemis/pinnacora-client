@@ -170,12 +170,20 @@ function isAcePoker(cards: Card[], type: ServerGameMeld['type']) {
   return type === 'set' && cards.length >= 4 && isAceSet(cards)
 }
 
+function isPinnacola(cards: Card[], type: ServerGameMeld['type']) {
+  return type === 'sequence' && cards.length >= 7 && !cards.some(isJoker)
+}
+
+export function isCompletePokerMeld(cards: Card[], type: ServerGameMeld['type']) {
+  return type === 'set' && cards.length === 4
+}
+
 export function isCompleteMeld(cards: Card[], type: ServerGameMeld['type']) {
   if (type === 'set') {
     return cards.length >= 4
   }
 
-  return cards.length >= 7 && !cards.some(isJoker)
+  return isPinnacola(cards, type)
 }
 
 function getRankPoints(rank: CardRank, aceCountsHigh: boolean) {

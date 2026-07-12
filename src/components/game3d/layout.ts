@@ -1,4 +1,6 @@
 import type { ServerGameState } from '../../game/serverTypes'
+import { CARD_HEIGHT } from './CardMesh'
+import { DISCARD_AREA_DEPTH, discardAreaPosition } from './constants'
 
 type HandFanLayoutOptions = {
   radius: number
@@ -84,6 +86,25 @@ export function sequenceMeldUsesCompactLayout(
     !isComplete &&
     cardCount > MELOD_SEQUENCE_COMPACT_VISIBLE_SLOTS
   )
+}
+
+const OPPONENT_MELD_DISCARD_MARGIN = 0.3
+
+export function clampOpponentMeldStartZ(
+  startZ: number,
+  visibleSlotCount: number,
+  cardSpacing: number,
+) {
+  const meldTrailingExtent = (visibleSlotCount - 1) * cardSpacing + CARD_HEIGHT / 2
+  const discardNearZ = discardAreaPosition.z - DISCARD_AREA_DEPTH / 2
+  const maxTrailingZ = discardNearZ - OPPONENT_MELD_DISCARD_MARGIN
+  const trailingZ = startZ + meldTrailingExtent
+
+  if (trailingZ <= maxTrailingZ) {
+    return startZ
+  }
+
+  return maxTrailingZ - meldTrailingExtent
 }
 
 export function sequenceMeldCardSlot(originalIndex: number, cardCount: number) {

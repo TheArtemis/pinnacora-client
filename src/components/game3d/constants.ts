@@ -1,4 +1,5 @@
 import type { ServerGameState } from '../../game/serverTypes'
+import { CARD_HEIGHT } from './CardMesh'
 
 export const emptyMelds: ServerGameState['melds'] = []
 
@@ -31,6 +32,9 @@ export const discardAreaPosition = {
   x: 0,
   z: -0.62,
 } as const
+
+/** Matches DiscardPile area depth. */
+export const DISCARD_AREA_DEPTH = CARD_HEIGHT * 1.34
 
 export const TABLE_CAMERA_FOCUS = {
   lookAt: {

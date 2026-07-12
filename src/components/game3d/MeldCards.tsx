@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getMeldPoints, isCompleteMeld } from '../../game/scoring'
+import { getMeldPoints, isCompletePokerMeld } from '../../game/scoring'
 import type { ServerGameState } from '../../game/serverTypes'
 import CardMesh, { CARD_HEIGHT } from './CardMesh'
 import { emptyMelds, localHandBaseZ, localMeldInteractionY, MELD_LAYOUT, tableCardBaseY } from './constants'
 import DevOutline from './DevOutline'
-import { localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
+import { clampOpponentMeldStartZ, localPlayerId, sequenceMeldCardSlot, sequenceMeldUsesCompactLayout, sequenceMeldVisibleSlotCount, MELOD_SEQUENCE_MIDDLE_STACK_OFFSET, MELOD_SEQUENCE_SLOT_SPACING_FACTOR } from './layout'
 import PointsBurst from './PointsBurst'
 
 const COMPLETED_MELD_SCALE = 0.72
@@ -29,7 +29,7 @@ type MeldCardsProps = {
 import { isJoker } from '../../game/cards'
 
 function isCompletedMeld(meld: ServerGameState['melds'][number]) {
-  return isCompleteMeld(meld.cards, meld.type)
+  return isCompletePokerMeld(meld.cards, meld.type)
 }
 
 export default function MeldCards({
@@ -136,7 +136,7 @@ export default function MeldCards({
         const startX = isComplete
           ? MELD_LAYOUT.completedX
           : (column - (columnsInRow - 1) / 2) * MELD_LAYOUT.columnSpacing
-        const startZ = isComplete
+        const baseStartZ = isComplete
           ? (isLocalMeld
             ? MELD_LAYOUT.localBaseZ + 0.1 - row * MELD_LAYOUT.completedRowSpacing
             : MELD_LAYOUT.opponentBaseZ - 0.1 + row * MELD_LAYOUT.completedRowSpacing)
@@ -164,6 +164,9 @@ export default function MeldCards({
               : CARD_HEIGHT * 0.42
         const zDirection = isLocalMeld ? -1 : 1
         const visibleSlotCount = sequenceMeldVisibleSlotCount(visibleCards.length, usesCompactSequenceLayout)
+        const startZ = !isLocalMeld && !isComplete
+          ? clampOpponentMeldStartZ(baseStartZ, visibleSlotCount, cardSpacing)
+          : baseStartZ
         const burstZ = startZ + ((visibleSlotCount - 1) * cardSpacing * zDirection) / 2
         const showPointBurst = activePointBurstMeldIds.has(meld.id)
 

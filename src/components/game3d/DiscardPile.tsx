@@ -1,13 +1,12 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Card as CardType } from '../../game/cardTypes'
-import CardMesh, { CARD_HEIGHT, CARD_WIDTH } from './CardMesh'
-import { localHandBaseZ, tableCardBaseY } from './constants'
+import CardMesh, { CARD_WIDTH } from './CardMesh'
+import { DISCARD_AREA_DEPTH, localHandBaseZ, tableCardBaseY } from './constants'
 import DevOutline from './DevOutline'
 import { createRoundedRectGeometry, createRoundedRectInnerGeometry } from './roundedRectGeometry'
 import type { GameTableSceneProps } from './types'
 
 const DISCARD_AREA_WIDTH = 8.8
-const DISCARD_AREA_DEPTH = CARD_HEIGHT * 1.34
 const DISCARD_AREA_CORNER_RADIUS = 0.42
 const DISCARD_AREA_BORDER_WIDTH = 0.1
 const DISCARD_AREA_X = 0
