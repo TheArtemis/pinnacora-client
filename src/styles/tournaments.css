@@ -58,9 +58,9 @@
   text-align: center;
   text-decoration: none;
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 22%, var(--accent)),
-    0 4px 0 var(--accent-strong),
-    0 6px 14px rgba(17, 24, 39, 0.12);
+    inset 0 2px 0 color-mix(in srgb, #ffffff 24%, var(--accent)),
+    0 7px 0 var(--accent-strong),
+    0 10px 20px rgba(17, 24, 39, 0.14);
   transform: translateY(0);
   transition:
     transform 90ms ease,
@@ -77,25 +77,25 @@
   background: color-mix(in srgb, var(--accent) 90%, #ffffff);
   transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 26%, var(--accent)),
-    0 5px 0 var(--accent-strong),
-    0 8px 18px rgba(17, 24, 39, 0.14);
+    inset 0 2px 0 color-mix(in srgb, #ffffff 28%, var(--accent)),
+    0 8px 0 var(--accent-strong),
+    0 12px 24px rgba(17, 24, 39, 0.16);
 }
 
 .tournament-detail__play:active:not(:disabled) {
-  transform: translateY(4px);
+  transform: translateY(7px);
   box-shadow:
-    inset 0 2px 4px rgba(17, 24, 39, 0.18),
+    inset 0 3px 5px rgba(17, 24, 39, 0.2),
     0 0 0 var(--accent-strong),
-    0 2px 4px rgba(17, 24, 39, 0.08);
+    0 2px 6px rgba(17, 24, 39, 0.1);
 }
 
 .tournament-detail__play:disabled {
   cursor: not-allowed;
   opacity: 0.7;
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 15%, var(--accent)),
-    0 2px 0 var(--accent-strong);
+    inset 0 2px 0 color-mix(in srgb, #ffffff 15%, var(--accent)),
+    0 4px 0 var(--accent-strong);
   transform: none;
 }
 
@@ -577,9 +577,9 @@
 
   .tournament-detail__play:active:not(:disabled) {
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 22%, var(--accent)),
-      0 5px 0 var(--accent-strong),
-      0 8px 18px rgba(17, 24, 39, 0.14);
+      inset 0 2px 0 color-mix(in srgb, #ffffff 24%, var(--accent)),
+      0 7px 0 var(--accent-strong),
+      0 10px 20px rgba(17, 24, 39, 0.14);
   }
 
   .tournaments-loading::after {
