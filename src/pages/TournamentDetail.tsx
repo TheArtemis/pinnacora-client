@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   completeTournament,
@@ -7,20 +7,20 @@ import {
   type Tournament,
 } from '../api/client'
 import { useAuth } from '../auth/useAuth'
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Not finished'
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
+import {
+  displayPlayerName,
+  formatGameStatus,
+  formatShortDate,
+  getActiveGame,
+  tournamentGamePath,
+} from '../tournaments/display'
 
 function tournamentLink(tournamentId: string) {
   return `${window.location.origin}/tournaments/${tournamentId}`
+}
+
+function riseStyle(index: number): CSSProperties {
+  return { '--rise-index': index } as CSSProperties
 }
 
 export default function TournamentDetail() {
@@ -79,7 +79,7 @@ export default function TournamentDetail() {
 
     try {
       const response = await createTournamentGame(user, tournament.id)
-      navigate(`/game/${response.game.roomCode}?tournamentId=${tournament.id}&gameDbId=${response.game.id}`)
+      navigate(tournamentGamePath(tournament.id, response.game))
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Could not create game.')
     } finally {
@@ -120,7 +120,7 @@ export default function TournamentDetail() {
   if (loading) {
     return (
       <main className="page-shell tournaments-page">
-        <p className="muted">Loading tournament...</p>
+        <p className="muted tournaments-loading tournaments-rise">Loading tournament...</p>
       </main>
     )
   }
@@ -128,121 +128,138 @@ export default function TournamentDetail() {
   if (!tournament) {
     return (
       <main className="page-shell tournaments-page">
-        <p className="form-error">{error || 'Tournament not found.'}</p>
-        <Link className="text-link" to="/tournaments">
+        <p className="form-error tournaments-rise">{error || 'Tournament not found.'}</p>
+        <Link className="text-link tournaments-rise" style={riseStyle(1)} to="/tournaments">
           Back to tournaments
         </Link>
       </main>
     )
   }
 
-  const activeGame = tournament.games.find((game) => game.status !== 'FINISHED')
-  const hasActiveGame = Boolean(activeGame)
-  const canStartGame = tournament.status === 'ACTIVE' && !hasActiveGame
+  const isActive = tournament.status === 'ACTIVE'
+  const activeGame = getActiveGame(tournament)
+  const leader = tournament.results.standings[0]
+  const finishedGames = tournament.games.filter((game) => game.status === 'FINISHED')
+  const playerNames = tournament.participants.map((participant) => displayPlayerName(participant.user))
+  let riseIndex = 0
 
   return (
     <main className="page-shell tournaments-page">
-      <header className="dashboard-header">
-        <div>
-          <p className="eyebrow">{tournament.status === 'ACTIVE' ? 'Active tournament' : 'Past tournament'}</p>
-          <h1>{tournament.name}</h1>
-          <p className="lede">Private join code: {tournament.joinCode}</p>
-        </div>
-        <div className="header-actions">
-          {activeGame ? (
-            <Link
-              className="primary-link"
-              to={`/game/${activeGame.roomCode}?tournamentId=${tournament.id}&gameDbId=${activeGame.id}`}
-            >
-              Go to game
-            </Link>
-          ) : null}
-          <button type="button" className="secondary-button" onClick={handleCopyTournamentLink}>
-            {copiedLink ? 'Copied!' : 'Copy tournament link'}
-          </button>
-          <Link className="secondary-link" to="/tournaments">
-            All tournaments
+      <header className="dashboard-panel tournament-detail__header tournaments-rise" style={riseStyle(riseIndex++)}>
+        <div className="tournament-detail__intro">
+          <Link className="text-link tournament-detail__back" to="/tournaments">
+            Tournaments
           </Link>
+          <h1>{tournament.name}</h1>
+          <div className="tournament-detail__meta">
+            <span>{isActive ? 'Active' : 'Completed'}</span>
+            <span className="tournament-detail__code">
+              Code <strong>{tournament.joinCode}</strong>
+              <button type="button" className="tournament-detail__copy" onClick={handleCopyTournamentLink}>
+                {copiedLink ? 'Copied' : 'Copy'}
+              </button>
+            </span>
+            <span>{playerNames.join(' vs ')}</span>
+          </div>
         </div>
+
+        {isActive ? (
+          <div className="tournament-detail__header-action">
+            {activeGame ? (
+              <Link
+                className="tournament-detail__play"
+                to={tournamentGamePath(tournament.id, activeGame)}
+              >
+                <span className="tournament-detail__play-label tournament-detail__play-label--stacked">
+                  <span>Continue</span>
+                  <span>{activeGame.roomCode}</span>
+                </span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="tournament-detail__play"
+                onClick={handleCreateGame}
+                disabled={submitting}
+              >
+                {submitting ? 'Starting...' : 'Start game'}
+              </button>
+            )}
+          </div>
+        ) : null}
       </header>
 
-      {error ? <p className="form-error">{error}</p> : null}
+      {!isActive ? (
+        <section
+          className="dashboard-panel tournament-detail__result tournaments-rise"
+          style={riseStyle(riseIndex++)}
+        >
+          <p>
+            Winner: <strong>{leader ? displayPlayerName(leader.user) : '—'}</strong>
+            {leader ? ` (${leader.wins} wins)` : null}
+          </p>
+        </section>
+      ) : null}
 
-      <section className="dashboard-grid">
-        <article className="dashboard-panel">
-          <h2>Players</h2>
-          <div className="player-list">
-            {tournament.participants.map((participant) => (
-              <span key={participant.id}>
-                {participant.user.displayName ?? participant.user.email ?? 'Player'}
-              </span>
+      {error ? (
+        <p className="form-error tournaments-rise" style={riseStyle(riseIndex++)}>
+          {error}
+        </p>
+      ) : null}
+
+      <section className="dashboard-panel tournaments-rise" style={riseStyle(riseIndex++)}>
+        <dl className="stats-grid stats-grid--two">
+          <div>
+            <dt>Games played</dt>
+            <dd>{tournament.results.finishedGames}</dd>
+          </div>
+          <div>
+            <dt>Leader</dt>
+            <dd>{leader ? `${displayPlayerName(leader.user)} (${leader.wins})` : '—'}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {tournament.results.standings.length > 0 ? (
+        <section className="dashboard-panel tournaments-rise" style={riseStyle(riseIndex++)}>
+          <h2>Standings</h2>
+          <div className="standings">
+            {tournament.results.standings.map((standing, index) => (
+              <article className="standing-row" key={standing.user.id}>
+                <strong>
+                  {index + 1}. {displayPlayerName(standing.user)}
+                </strong>
+                <span>{standing.wins} wins</span>
+              </article>
             ))}
           </div>
-        </article>
+        </section>
+      ) : null}
 
-      </section>
+      {finishedGames.length > 0 ? (
+        <section className="dashboard-panel tournaments-rise" style={riseStyle(riseIndex++)}>
+          <h2>Past games</h2>
+          <div className="game-list">
+            {finishedGames.map((game) => (
+              <article className="game-row" key={game.id}>
+                <div>
+                  <strong>{game.roomCode}</strong>
+                  <p className="muted">
+                    {formatGameStatus(game.status)}
+                    {game.winner ? ` · ${displayPlayerName(game.winner)} won` : ''}
+                    {formatShortDate(game.finishedAt) ? ` · ${formatShortDate(game.finishedAt)}` : ''}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      <section className="dashboard-panel">
-        <div className="section-heading section-heading--compact">
-          <h2>Standings</h2>
-          <span>{tournament.results.finishedGames} finished games</span>
-        </div>
-        <div className="standings">
-          {tournament.results.standings.map((standing, index) => (
-            <article className="standing-row" key={standing.user.id}>
-              <strong>
-                {index + 1}. {standing.user.displayName ?? standing.user.email ?? 'Player'}
-              </strong>
-              <span>{standing.wins} wins</span>
-              <span>{standing.gamesPlayed} played</span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="dashboard-panel">
-        <div className="section-heading">
-          <h2>Games</h2>
-        </div>
-        <div className="game-list">
-          {canStartGame ? (
-            <button
-              type="button"
-              className="game-row game-row--action"
-              onClick={handleCreateGame}
-              disabled={submitting}
-            >
-              + {submitting ? 'Starting game...' : 'Start new game'}
-            </button>
-          ) : null}
-          {tournament.games.map((game) => (
-            <article className="game-row" key={game.id}>
-              <div>
-                <strong>{game.roomCode}</strong>
-                <p className="muted">
-                  {game.status} · Winner:{' '}
-                  {game.winner?.displayName ?? game.winner?.email ?? 'Not decided'} · Finished:{' '}
-                  {formatDate(game.finishedAt)}
-                </p>
-              </div>
-              {game.status !== 'FINISHED' ? (
-                <Link
-                  className="text-link"
-                  to={`/game/${game.roomCode}?tournamentId=${tournament.id}&gameDbId=${game.id}`}
-                >
-                  Open game
-                </Link>
-              ) : null}
-            </article>
-          ))}
-          {!canStartGame && tournament.games.length === 0 ? <p className="muted">No games yet.</p> : null}
-        </div>
-      </section>
-
-      {tournament.status === 'ACTIVE' ? (
-        <footer className="detail-actions">
+      {isActive ? (
+        <footer className="detail-actions tournaments-rise" style={riseStyle(riseIndex++)}>
           <button type="button" className="secondary-button" onClick={handleCompleteTournament} disabled={submitting}>
-            Mark tournament complete
+            Mark complete
           </button>
         </footer>
       ) : null}

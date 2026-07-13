@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   createTournament,
@@ -9,46 +8,40 @@ import {
 } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import TournamentCard from '../components/tournaments/TournamentCard'
+import { getActiveGame, tournamentGamePath } from '../tournaments/display'
 
-const inputClass =
-  'h-[3.25rem] w-full rounded-2xl border border-[var(--border)] bg-[var(--input)] px-5 text-base font-bold text-[var(--text-h)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-bg)]'
-const primaryButtonClass =
-  'inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[var(--accent)] px-6 font-black text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60'
-const secondaryButtonClass =
-  'inline-flex h-11 items-center justify-center rounded-2xl border-2 border-[var(--secondary-border)] bg-[var(--panel)] px-5 text-sm font-black text-[var(--secondary)] transition hover:border-[var(--secondary-strong)] hover:bg-[var(--secondary-hover-bg)] hover:text-[var(--secondary-strong)] disabled:cursor-not-allowed disabled:opacity-60'
+function riseStyle(index: number): CSSProperties {
+  return { '--rise-index': index } as CSSProperties
+}
 
 function TournamentSection({
-  columns = 'two',
   emptyMessage,
   loading,
+  riseOffset,
   title,
   tournaments,
 }: {
-  columns?: 'one' | 'two'
   emptyMessage: string
   loading: boolean
+  riseOffset: number
   title: string
   tournaments: Tournament[]
 }) {
-  const gridClass = columns === 'one' ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 gap-3 md:grid-cols-2'
-
   return (
-    <section className="grid gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <h2 className="text-2xl font-black tracking-[-0.04em] text-[var(--text-h)]">{title}</h2>
-        <span className="text-sm font-bold text-[var(--muted)]">{tournaments.length}</span>
+    <section className="tournament-section tournaments-rise" style={riseStyle(riseOffset)}>
+      <div className="section-heading">
+        <h2>{title}</h2>
+        <span>{tournaments.length}</span>
       </div>
 
-      <div className={gridClass}>
-        {tournaments.map((tournament) => (
-          <TournamentCard key={tournament.id} tournament={tournament} />
+      <div className="card-grid">
+        {tournaments.map((tournament, index) => (
+          <TournamentCard key={tournament.id} tournament={tournament} riseIndex={riseOffset + index + 1} />
         ))}
       </div>
 
       {!loading && tournaments.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)] p-5 text-[var(--muted)]">
-          <p className="font-bold">{emptyMessage}</p>
-        </div>
+        <p className="muted">{emptyMessage}</p>
       ) : null}
     </section>
   )
@@ -105,6 +98,15 @@ export default function Tournaments() {
     }
   }, [user])
 
+  const resumeGame = activeTournaments
+    .map((tournament) => {
+      const game = getActiveGame(tournament)
+      return game ? { tournament, game } : null
+    })
+    .find((entry) => entry !== null)
+
+  let riseIndex = 0
+
   async function handleCreateTournament(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -157,97 +159,92 @@ export default function Tournaments() {
 
   return (
     <main className="page-shell tournaments-page">
-      <div className="grid w-full gap-6">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-[var(--muted)]">
-              {user?.displayName ?? user?.email ?? 'Signed in'}
-            </p>
-            <h1 className="mt-1 text-4xl font-black tracking-[-0.06em] text-[var(--text-h)]">
-              Tournaments
-            </h1>
-            <p className="mt-2 text-base font-semibold text-[var(--muted)]">
-              Create one, join one, or open an active tournament.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link className={secondaryButtonClass} to="/lobby">
-              Quick game
-            </Link>
-            <button type="button" className={secondaryButtonClass} onClick={logout}>
-              Log out
-            </button>
-          </div>
-        </header>
+      <header className="dashboard-header tournaments-rise" style={riseStyle(riseIndex++)}>
+        <div>
+          <p className="eyebrow">{user?.displayName ?? user?.email ?? 'Signed in'}</p>
+          <h1>Tournaments</h1>
+        </div>
+        <div className="header-actions">
+          <Link className="secondary-link" to="/lobby">
+            Quick game
+          </Link>
+          <button type="button" className="secondary-button" onClick={logout}>
+            Log out
+          </button>
+        </div>
+      </header>
 
-        <section className="grid gap-3 rounded-3xl border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow)] md:grid-cols-2">
-          <div>
-            <h2 className="text-lg font-black text-[var(--text-h)]">Create tournament</h2>
-            <form className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={handleCreateTournament}>
-              <label className="sr-only" htmlFor="tournament-name">
-                Tournament name
-              </label>
-              <input
-                className={inputClass}
-                id="tournament-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Weekend match"
-                required
-              />
-              <button className={primaryButtonClass} type="submit" disabled={submitting || !name.trim()}>
-                Create
-              </button>
-            </form>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-black text-[var(--text-h)]">Join tournament</h2>
-            <form className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={handleJoinTournament}>
-              <label className="sr-only" htmlFor="join-code">
-                Private code
-              </label>
-              <input
-                className={`${inputClass} uppercase`}
-                id="join-code"
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                placeholder="ABC123"
-                required
-              />
-              <button className={primaryButtonClass} type="submit" disabled={submitting || !joinCode.trim()}>
-                Join
-              </button>
-            </form>
-          </div>
+      {resumeGame ? (
+        <section className="tournament-actions tournaments-rise" style={riseStyle(riseIndex++)}>
+          <Link
+            className="tournament-actions__primary"
+            to={tournamentGamePath(resumeGame.tournament.id, resumeGame.game)}
+          >
+            Continue game {resumeGame.game.roomCode}
+          </Link>
+          <p className="tournament-actions__label">{resumeGame.tournament.name}</p>
         </section>
+      ) : null}
 
-        {error ? (
-          <p className="rounded-3xl border border-[var(--danger)] bg-[var(--danger-bg)] px-5 py-4 font-bold text-[var(--danger)]">
-            {error}
-          </p>
-        ) : null}
-        {loading ? (
-          <p className="rounded-3xl border border-[var(--border)] bg-[var(--panel)] px-5 py-4 font-bold text-[var(--muted)]">
-            Loading tournaments...
-          </p>
-        ) : null}
+      <section className="dashboard-panel dashboard-grid tournaments-rise" style={riseStyle(riseIndex++)}>
+        <form className="form-panel" onSubmit={handleCreateTournament}>
+          <h2>Create tournament</h2>
+          <label htmlFor="tournament-name">Name</label>
+          <input
+            id="tournament-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Weekend match"
+            required
+          />
+          <button type="submit" disabled={submitting || !name.trim()}>
+            Create
+          </button>
+        </form>
 
-        <TournamentSection
-          emptyMessage="No active tournaments yet. Create one above to get started."
-          loading={loading}
-          title="Available now"
-          tournaments={activeTournaments}
-        />
+        <form className="form-panel" onSubmit={handleJoinTournament}>
+          <h2>Join with code</h2>
+          <label htmlFor="join-code">Code</label>
+          <input
+            className="uppercase"
+            id="join-code"
+            value={joinCode}
+            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+            placeholder="ABC123"
+            required
+          />
+          <button type="submit" disabled={submitting || !joinCode.trim()}>
+            Join
+          </button>
+        </form>
+      </section>
 
-        <TournamentSection
-          columns="one"
-          emptyMessage="Completed tournaments will show up here."
-          loading={loading}
-          title="Archive"
-          tournaments={pastTournaments}
-        />
-      </div>
+      {error ? (
+        <p className="form-error tournaments-rise" style={riseStyle(riseIndex++)}>
+          {error}
+        </p>
+      ) : null}
+      {loading ? (
+        <p className="muted tournaments-loading tournaments-rise" style={riseStyle(riseIndex++)}>
+          Loading tournaments...
+        </p>
+      ) : null}
+
+      <TournamentSection
+        emptyMessage="No active tournaments."
+        loading={loading}
+        riseOffset={riseIndex++}
+        title="Active"
+        tournaments={activeTournaments}
+      />
+
+      <TournamentSection
+        emptyMessage="No completed tournaments."
+        loading={loading}
+        riseOffset={riseIndex + activeTournaments.length + 1}
+        title="Completed"
+        tournaments={pastTournaments}
+      />
     </main>
   )
 }
