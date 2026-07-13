@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import SessionCheckingScreen from './SessionCheckingScreen'
 import { useAuth } from './useAuth'
 
 export default function RequireAuth({ children }: PropsWithChildren) {
@@ -7,14 +8,7 @@ export default function RequireAuth({ children }: PropsWithChildren) {
   const { loading, user } = useAuth()
 
   if (loading) {
-    return (
-      <main className="page-shell auth-page">
-        <section className="auth-card">
-          <p className="eyebrow">Loading</p>
-          <h1>Checking your session...</h1>
-        </section>
-      </main>
-    )
+    return <SessionCheckingScreen />
   }
 
   if (!user) {

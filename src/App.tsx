@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import RequireAuth from './auth/RequireAuth'
+import SessionCheckingScreen from './auth/SessionCheckingScreen'
 import { useServerKeepalive } from './hooks/useServerKeepalive'
 import Game from './pages/game/Game'
 import Login from './pages/Login'
@@ -56,6 +57,7 @@ function App() {
       />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/dev/checking-session" element={<SessionCheckingScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
