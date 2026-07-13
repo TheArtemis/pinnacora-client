@@ -9,6 +9,7 @@ import Lobby from './pages/Lobby'
 import Register from './pages/Register'
 import TournamentDetail from './pages/TournamentDetail'
 import Tournaments from './pages/Tournaments'
+import GameEndOverlayDevPage from './pages/dev/GameEndOverlayDevPage'
 
 function App() {
   useServerKeepalive()
@@ -58,6 +59,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dev/checking-session" element={<SessionCheckingScreen />} />
+      <Route path="/dev/game-end" element={<GameEndOverlayDevPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

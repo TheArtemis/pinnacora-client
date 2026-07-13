@@ -37,9 +37,9 @@ export function formatPlayerPoints(state: ServerGameState, playerId: string, mel
 
   if (state.status === 'finished' && finalScore) {
     const breakdown = [
-      `${finalScore.meldPoints} table`,
-      finalScore.finishBonus > 0 ? `+${finalScore.finishBonus} finish` : null,
-      finalScore.handPenalty > 0 ? `-${finalScore.handPenalty} hand` : null,
+      `${finalScore.meldPoints} from melds`,
+      finalScore.finishBonus > 0 ? `+${finalScore.finishBonus} finish bonus` : null,
+      finalScore.handPenalty > 0 ? `-${finalScore.handPenalty} left in hand` : null,
     ].filter(Boolean).join(' · ')
 
     return `${finalScore.total} points (${breakdown})`

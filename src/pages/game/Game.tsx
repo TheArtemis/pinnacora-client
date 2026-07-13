@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { finishTournamentGame } from '../../api/client'
+import { useParams, useSearchParams } from 'react-router-dom'
 import DevStatePanel from '../../components/dev/DevStatePanel'
+import GameEndOverlay from '../../components/game/GameEndOverlay'
+import SurrenderConfirmDialog from '../../components/game/SurrenderConfirmDialog'
 import GameTableScene from '../../components/game3d'
 import MeldOrderPicker from '../../components/MeldOrderPicker'
 import { useAuth } from '../../auth/useAuth'
@@ -22,7 +23,6 @@ import { useTableHint } from './hooks/useTableHint'
 import { useDrawnCardHighlight } from './hooks/useDrawnCardHighlight'
 
 export default function Game() {
-  const navigate = useNavigate()
   const { gameId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
@@ -30,8 +30,8 @@ export default function Game() {
   const gameDbId = searchParams.get('gameDbId')
   const isTournamentGame = Boolean(tournamentId && gameDbId)
 
-  const [finishError, setFinishError] = useState('')
-  const [finishing, setFinishing] = useState(false)
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false)
+  const [surrendering, setSurrendering] = useState(false)
   const [copiedGameLink, setCopiedGameLink] = useState(false)
   const [handHoverCameraFocusEnabled, setHandHoverCameraFocusEnabled] = useState(false)
   const [puttingDownCards, setPuttingDownCards] = useState<Card[]>([])
@@ -227,22 +227,53 @@ export default function Game() {
     socket.emit('hover_hand_cards', { cardIndexes })
   }
 
-  const handleFinishGame = async () => {
-    if (!user || !tournamentId || !gameDbId) {
+  const canSurrender = isTournamentGame && serverState?.status === 'playing' && !surrendering
+
+  useEffect(() => {
+    if (serverState?.status === 'finished') {
+      setShowSurrenderConfirm(false)
+      setSurrendering(false)
+    }
+  }, [serverState?.status])
+
+  useEffect(() => {
+    if (gameError && surrendering) {
+      setSurrendering(false)
+    }
+  }, [gameError, surrendering])
+
+  const gameEndOutcome = useMemo(() => {
+    if (!serverState || serverState.status !== 'finished' || !serverState.youPlayerId || !serverState.winnerId) {
+      return null
+    }
+
+    return serverState.winnerId === serverState.youPlayerId ? 'win' : 'loss'
+  }, [serverState])
+
+  const handleSurrender = () => {
+    if (!canSurrender) {
       return
     }
 
-    setFinishing(true)
-    setFinishError('')
+    setShowSurrenderConfirm(true)
+  }
 
-    try {
-      await finishTournamentGame(user, tournamentId, gameDbId)
-      navigate(`/tournaments/${tournamentId}`)
-    } catch (error) {
-      setFinishError(error instanceof Error ? error.message : 'Could not finish game.')
-    } finally {
-      setFinishing(false)
+  const handleConfirmSurrender = () => {
+    if (!canSurrender) {
+      return
     }
+
+    setGameError('')
+    setSurrendering(true)
+    socket.emit('surrender')
+  }
+
+  const handleCancelSurrender = () => {
+    if (surrendering) {
+      return
+    }
+
+    setShowSurrenderConfirm(false)
   }
 
   const handleCopyGameLink = async () => {
@@ -260,10 +291,10 @@ export default function Game() {
         connectionStatus={connectionStatus}
         handHoverCameraFocusEnabled={handHoverCameraFocusEnabled}
         copiedGameLink={copiedGameLink}
-        finishing={finishing}
+        canSurrender={canSurrender}
         onHandHoverCameraFocusChange={setHandHoverCameraFocusEnabled}
         onCopyGameLink={handleCopyGameLink}
-        onFinishGame={handleFinishGame}
+        onSurrender={handleSurrender}
       />
 
       <section className="table table--three">
@@ -316,7 +347,22 @@ export default function Game() {
       </section>
 
       {gameError ? <p className="form-error">{gameError}</p> : null}
-      {finishError ? <p className="form-error">{finishError}</p> : null}
+
+      {showSurrenderConfirm ? (
+        <SurrenderConfirmDialog
+          surrendering={surrendering}
+          onConfirm={handleConfirmSurrender}
+          onCancel={handleCancelSurrender}
+        />
+      ) : null}
+
+      {gameEndOutcome && serverState ? (
+        <GameEndOverlay
+          outcome={gameEndOutcome}
+          state={serverState}
+          returnTo={tournamentId ? `/tournaments/${tournamentId}` : '/tournaments'}
+        />
+      ) : null}
 
       {meldOrderPickerCards ? (
         <MeldOrderPicker

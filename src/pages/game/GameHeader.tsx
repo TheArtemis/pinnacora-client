@@ -7,10 +7,10 @@ type GameHeaderProps = {
   connectionStatus: string
   handHoverCameraFocusEnabled: boolean
   copiedGameLink: boolean
-  finishing: boolean
+  canSurrender: boolean
   onHandHoverCameraFocusChange: (enabled: boolean) => void
   onCopyGameLink: () => void
-  onFinishGame: () => void
+  onSurrender: () => void
 }
 
 export default function GameHeader({
@@ -20,10 +20,10 @@ export default function GameHeader({
   connectionStatus,
   handHoverCameraFocusEnabled,
   copiedGameLink,
-  finishing,
+  canSurrender,
   onHandHoverCameraFocusChange,
   onCopyGameLink,
-  onFinishGame,
+  onSurrender,
 }: GameHeaderProps) {
   return (
     <header className="game-header">
@@ -51,8 +51,8 @@ export default function GameHeader({
           {copiedGameLink ? 'Copied!' : 'Copy game link'}
         </button>
         {isTournamentGame ? (
-          <button type="button" className="secondary-button" onClick={onFinishGame} disabled={finishing}>
-            {finishing ? 'Finishing...' : 'Finish game'}
+          <button type="button" className="secondary-button" onClick={onSurrender} disabled={!canSurrender}>
+            Surrender
           </button>
         ) : null}
         <Link className="secondary-link" to={tournamentId ? `/tournaments/${tournamentId}` : '/'}>

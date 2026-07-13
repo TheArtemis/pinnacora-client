@@ -1,0 +1,330 @@
+.game-end-overlay__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.game-end-overlay__backdrop--win {
+  background: rgb(15 23 42 / 38%);
+  animation: game-end-backdrop-in 320ms ease-out;
+  overflow: visible;
+}
+
+.game-end-overlay__backdrop--loss {
+  background: rgb(15 23 42 / 52%);
+  animation: game-end-backdrop-in 420ms ease-out;
+}
+
+.game-end-overlay__stage {
+  position: relative;
+  width: min(560px, 100%);
+  overflow: visible;
+}
+
+.game-end-overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: clamp(28px, 4vw, 36px);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+.game-end-overlay--win:not(.game-end-overlay--static) {
+  animation: game-end-card-pop-win 720ms cubic-bezier(0.34, 1.28, 0.64, 1);
+}
+
+.game-end-overlay--loss:not(.game-end-overlay--static) {
+  animation: game-end-card-pop-loss 640ms cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+.game-end-overlay__title {
+  margin: 0 0 20px;
+  max-width: 100%;
+  font-size: clamp(2rem, 6vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+
+.game-end-overlay--win .game-end-overlay__title {
+  color: var(--success);
+  animation: game-end-title-glow 2.4s ease-in-out infinite;
+}
+
+.game-end-overlay--loss .game-end-overlay__title {
+  color: var(--danger);
+}
+
+.game-end-overlay__scores {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-end-overlay__score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  background: var(--panel-soft);
+}
+
+.game-end-overlay__score-name {
+  color: var(--text-h);
+  font-size: 1rem;
+}
+
+.game-end-overlay__score-total {
+  color: var(--text-h);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.game-end-overlay__score--winner {
+  border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+  background: var(--success-bg);
+}
+
+.game-end-overlay--loss .game-end-overlay__score--winner {
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+  background: var(--danger-bg);
+}
+
+.game-end-overlay__dismiss {
+  align-self: center;
+  margin-top: 28px;
+}
+
+.game-end-overlay__confetti-behind,
+.game-end-overlay__confetti-front {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-end-overlay__confetti-behind {
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.game-end-overlay__confetti-front {
+  z-index: 2;
+  overflow: visible;
+}
+
+.game-end-overlay__confetti-piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 2px;
+}
+
+.game-end-overlay__confetti-piece--circle {
+  border-radius: 50%;
+}
+
+.game-end-overlay__confetti-piece--strip {
+  border-radius: 999px;
+}
+
+.game-end-overlay__falling-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  pointer-events: none;
+}
+
+.game-end-overlay__falling-card {
+  position: absolute;
+  top: -18%;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-h);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.12);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.game-end-overlay__falling-card:nth-child(1) {
+  left: 18%;
+  animation: game-end-card-fall 3.2s ease-in forwards;
+}
+
+.game-end-overlay__falling-card:nth-child(2) {
+  left: 48%;
+  animation: game-end-card-fall 3.6s ease-in 0.35s forwards;
+}
+
+.game-end-overlay__falling-card:nth-child(3) {
+  left: 72%;
+  animation: game-end-card-fall 3.1s ease-in 0.7s forwards;
+}
+
+.game-end-overlay__falling-card--red {
+  color: var(--danger);
+}
+
+.game-end-overlay--static .game-end-overlay__title,
+.game-end-overlay--static .game-end-overlay__falling-card {
+  animation: none;
+}
+
+.game-end-overlay--static .game-end-overlay__falling-card {
+  opacity: 0;
+}
+
+@keyframes game-end-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes game-end-card-pop-win {
+  0% {
+    opacity: 0;
+    transform: translateY(56px) scale(0.72);
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.06);
+  }
+
+  42% {
+    opacity: 1;
+    transform: translateY(-12px) scale(1.05);
+    box-shadow: 0 30px 58px rgba(17, 24, 39, 0.2);
+  }
+
+  68% {
+    transform: translateY(5px) scale(0.985);
+    box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: var(--shadow);
+  }
+}
+
+@keyframes game-end-card-pop-loss {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.84) rotate(-1.5deg);
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.06);
+  }
+
+  48% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.02) rotate(0.4deg);
+    box-shadow: 0 24px 48px rgba(17, 24, 39, 0.16);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+    box-shadow: var(--shadow);
+  }
+}
+
+@keyframes game-end-title-glow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(21, 128, 61, 0));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 18px rgba(21, 128, 61, 0.28));
+  }
+}
+
+@keyframes game-end-card-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(0) rotate(-8deg);
+  }
+
+  10% {
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(115vh) rotate(18deg);
+  }
+}
+
+.game-end-dev-page {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.game-end-dev-page__bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(37, 99, 235, 0.12), transparent 42%),
+    radial-gradient(circle at 82% 78%, rgba(21, 128, 61, 0.1), transparent 40%),
+    linear-gradient(180deg, #f8f7f3 0%, var(--bg) 48%, #e8efe9 100%);
+}
+
+.game-end-dev-page__content {
+  position: relative;
+  z-index: 1;
+}
+
+.game-end-dev-page__controls {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  max-width: min(420px, calc(100% - 40px));
+}
+
+.game-end-dev-page__controls .secondary-button {
+  min-width: 112px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .game-end-overlay__backdrop,
+  .game-end-overlay:not(.game-end-overlay--static),
+  .game-end-overlay__title,
+  .game-end-overlay__falling-card {
+    animation: none;
+  }
+}

@@ -3,4 +3,5 @@
 @import './styles/game.css';
 @import './styles/tournaments.css';
 @import './styles/auth.css';
+@import './styles/game-end.css';
 @import './styles/responsive.css';
